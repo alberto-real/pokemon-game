@@ -21,6 +21,7 @@ Target inicial: **local-first**, self-contained, portable hacia una futura plata
 - Generación del quiz con LLM local (Ollama) y fallback a Groq free tier.
 - Audio de las preguntas pre-generado con Google Cloud TTS neural y cacheado.
 - Auto-detección del tema (claro/oscuro) del sistema operativo del usuario.
+- **UI bilingüe** (castellano por defecto, inglés disponible) con `@ngx-translate/core`. El contenido del juego (voz, preguntas, Pokémon) permanece en castellano.
 - Código portable al futuro monorepo Nx + Keycloak + Cloudflare Tunnel en OCI, sin reescritura.
 
 ### No-objetivos (explícitamente fuera de alcance)
@@ -250,6 +251,25 @@ ensureTodaysQuizExists()    (idempotente, seguro ante concurrencia por UNIQUE(da
 - `kbd` — mostrar "A / B / C / D" sobre las opciones.
 - `toast` — notificaciones efímeras ("Voz no detectada, intenta de nuevo").
 
+### Internacionalización (i18n) — dos capas, una sola bilingüe
+
+**Capa 1 (UI chrome): bilingüe con `@ngx-translate/core` 17.x**
+- Idiomas soportados: `es` (por defecto) y `en`.
+- Detección al arranque: `navigator.language` → si empieza por `es` → `es`, si no → `en`, fallback final `es`.
+- Selector manual en un componente de header (`LanguageSwitcher`) que persiste la elección en `localStorage`.
+- Ficheros de traducción: `src/assets/i18n/es.json` (source of truth) + `src/assets/i18n/en.json`.
+- Claves organizadas por feature: `game.attempts.remaining`, `quiz.question.label`, `common.surrender`, `errors.voice_not_detected`, etc.
+- `HttpLoaderFactory` con `TranslateHttpLoader` para cargar los JSON desde `/assets/i18n/`.
+
+**Capa 2 (contenido del juego): monolingüe castellano**
+- STT: `lang='es-ES'` fijo.
+- TTS: voz `es-ES-Chirp3-HD-*` fija. No se generan MP3 en inglés.
+- LLM: genera el quiz en castellano. No se generan quizzes paralelos en inglés.
+- Nombres Pokemon: el `pokemon_name_es` se muestra al usuario; el `pokemon_name` (inglés canónico) se usa internamente para matching.
+- Consecuencia: aunque el usuario cambie la UI a inglés, las preguntas, respuestas y audio del quiz siguen siendo en castellano. La UX es coherente: "juego en castellano con UI en el idioma preferido del usuario".
+
+**Scope futuro (fuera de este spec)**: bilingüismo completo (STT/TTS/LLM en ambos idiomas) → Plan separado si se necesita.
+
 ## 10. Backend (Spring Boot 3.4 + Java 25)
 
 ### Stack
@@ -375,6 +395,7 @@ El diseño actual no bloquea ninguno de estos pasos: folder layout Nx-compatible
 | Angular CLI / framework | 21.2.x |
 | Tailwind CSS | 4.2.x |
 | DaisyUI | 5.5.x |
+| @ngx-translate/core + /http-loader | 17.0.x |
 | Java | 25 |
 | Spring Boot | 3.4.x |
 | Spring AI | versión compatible con Spring Boot 3.4 |
