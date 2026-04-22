@@ -1,0 +1,44 @@
+# Node / Angular
+node_modules/
+dist/
+.angular/
+coverage/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Java / Spring Boot
+target/
+build/
+.gradle/
+*.jar
+*.war
+*.class
+HELP.md
+
+# IDE
+.idea/
+.vscode/
+*.iml
+.settings/
+.project
+.classpath
+.factorypath
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+secrets/
+*.pem
+
+# Runtime storage (audio MP3s generated on the fly)
+storage/
+
+# Ollama models cache (if bind-mounted)
+ollama-data/
