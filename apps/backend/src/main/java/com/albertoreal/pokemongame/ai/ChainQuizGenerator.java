@@ -24,12 +24,14 @@ public class ChainQuizGenerator implements QuizGenerator {
     public ChainQuizGenerator(OllamaQuizGenerator ollama,
                               ObjectProvider<GroqQuizGenerator> groq,
                               ObjectProvider<OpenRouterQuizGenerator> openRouter) {
+        // Order: hosted models first (better quality when available, rate-limited)
+        // then local Ollama as always-available fallback.
         this.providers = new ArrayList<>();
-        providers.add(ollama);
         GroqQuizGenerator g = groq.getIfAvailable();
         if (g != null) providers.add(g);
         OpenRouterQuizGenerator or = openRouter.getIfAvailable();
         if (or != null) providers.add(or);
+        providers.add(ollama);
         log.info("ChainQuizGenerator initialized with {} providers: {}", providers.size(),
             providers.stream().map(p -> p.getClass().getSimpleName()).toList());
     }
