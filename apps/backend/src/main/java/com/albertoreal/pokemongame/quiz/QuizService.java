@@ -37,8 +37,7 @@ public class QuizService {
         var quiz = quizRepo.findById(date).orElseThrow();
         var questions = questionRepo.findByQuizDateOrderByPositionAsc(date).stream()
             .map(q -> new QuizView.QuestionView(
-                q.getId(), q.getPosition(), q.getQuestionText(),
-                q.getOptions(), q.getAudioQuestionPath()))
+                q.getId(), q.getPosition(), q.getQuestionText(), q.getOptions()))
             .toList();
         return new QuizView(quiz.getStatus().name(), questions);
     }

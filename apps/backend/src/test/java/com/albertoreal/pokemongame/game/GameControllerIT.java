@@ -6,7 +6,6 @@ import com.albertoreal.pokemongame.pokeapi.dto.PokemonDto;
 import com.albertoreal.pokemongame.pokeapi.dto.PokemonSpeciesDto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
@@ -17,7 +16,6 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -34,15 +32,11 @@ class GameControllerIT {
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:17-alpine")
         .withDatabaseName("pokemon_game").withUsername("pokemon").withPassword("pw");
 
-    @TempDir
-    static Path audioDir;
-
     @DynamicPropertySource
     static void props(DynamicPropertyRegistry r) {
         r.add("spring.datasource.url", postgres::getJdbcUrl);
         r.add("spring.datasource.username", postgres::getUsername);
         r.add("spring.datasource.password", postgres::getPassword);
-        r.add("pokemon-game.storage.audio-dir", audioDir::toString);
     }
 
     @MockitoBean PokeApiClient pokeApi;

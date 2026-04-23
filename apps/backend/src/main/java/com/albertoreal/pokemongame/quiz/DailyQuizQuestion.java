@@ -31,13 +31,6 @@ public class DailyQuizQuestion {
     @Column(name = "correct_option_index", nullable = false)
     private int correctOptionIndex;
 
-    @Column(name = "audio_question_path")
-    private String audioQuestionPath;
-
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "audio_options_paths", columnDefinition = "jsonb")
-    private List<String> audioOptionsPaths;
-
     protected DailyQuizQuestion() {}
 
     public DailyQuizQuestion(LocalDate quizDate, int position, String questionText,
@@ -55,8 +48,4 @@ public class DailyQuizQuestion {
     public String getQuestionText() { return questionText; }
     public List<String> getOptions() { return options; }
     public int getCorrectOptionIndex() { return correctOptionIndex; }
-    public String getAudioQuestionPath() { return audioQuestionPath; }
-    public void setAudioQuestionPath(String p) { this.audioQuestionPath = p; }
-    public List<String> getAudioOptionsPaths() { return audioOptionsPaths; }
-    public void setAudioOptionsPaths(List<String> p) { this.audioOptionsPaths = p; }
 }

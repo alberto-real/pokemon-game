@@ -6,8 +6,6 @@ import com.albertoreal.pokemongame.game.DailyPokemon;
 import com.albertoreal.pokemongame.game.DailyPokemonRepository;
 import com.albertoreal.pokemongame.game.PokemonNameCatalog;
 import com.albertoreal.pokemongame.game.PokemonSelector;
-import com.albertoreal.pokemongame.media.AudioStorage;
-import com.albertoreal.pokemongame.media.TextToSpeechService;
 import com.albertoreal.pokemongame.pokeapi.PokeApiClient;
 import com.albertoreal.pokemongame.pokeapi.dto.PokemonDto;
 import com.albertoreal.pokemongame.pokeapi.dto.PokemonSpeciesDto;
@@ -33,8 +31,6 @@ public class QuizOrchestrator {
     private final PokemonSelector selector;
     private final PokeApiClient pokeApi;
     private final QuizGenerator quizGenerator;
-    private final TextToSpeechService tts;
-    private final AudioStorage audioStorage;
     private final PokemonNameCatalog catalog;
 
     public QuizOrchestrator(DailyPokemonRepository pokemonRepo,
@@ -43,8 +39,6 @@ public class QuizOrchestrator {
                             PokemonSelector selector,
                             PokeApiClient pokeApi,
                             QuizGenerator quizGenerator,
-                            TextToSpeechService tts,
-                            AudioStorage audioStorage,
                             PokemonNameCatalog catalog) {
         this.pokemonRepo = pokemonRepo;
         this.quizRepo = quizRepo;
@@ -52,16 +46,12 @@ public class QuizOrchestrator {
         this.selector = selector;
         this.pokeApi = pokeApi;
         this.quizGenerator = quizGenerator;
-        this.tts = tts;
-        this.audioStorage = audioStorage;
         this.catalog = catalog;
     }
 
     @Transactional
     public void ensureExists(LocalDate date) {
-        if (quizRepo.findById(date).isPresent()) {
-            return;
-        }
+        if (quizRepo.findById(date).isPresent()) return;
         try {
             generateForDate(date);
         } catch (DataIntegrityViolationException conflict) {
@@ -82,10 +72,8 @@ public class QuizOrchestrator {
         String imageUrl = pokemon.officialArtworkUrl();
         if (imageUrl == null) imageUrl = "";
 
-        var daily = new DailyPokemon(
-            date, pokemonId, pokemon.name(), nameEs,
-            imageUrl, OffsetDateTime.now());
-        pokemonRepo.save(daily);
+        pokemonRepo.save(new DailyPokemon(
+            date, pokemonId, pokemon.name(), nameEs, imageUrl, OffsetDateTime.now()));
         catalog.register(pokemon.name());
 
         var quiz = new DailyQuiz(date, QuizStatus.GENERATING_QUIZ, OffsetDateTime.now());
@@ -96,18 +84,6 @@ public class QuizOrchestrator {
             var g = generated.get(i);
             questionRepo.save(new DailyQuizQuestion(
                 date, i + 1, g.text(), g.options(), g.correctIndex()));
-        }
-
-        quiz.setStatus(QuizStatus.GENERATING_AUDIO);
-        quizRepo.save(quiz);
-
-        var questions = questionRepo.findByQuizDateOrderByPositionAsc(date);
-        for (var q : questions) {
-            byte[] audio = tts.synthesize(q.getQuestionText());
-            String filename = "q" + q.getPosition() + ".mp3";
-            audioStorage.store(date, filename, audio);
-            q.setAudioQuestionPath(audioStorage.relativePath(date, filename));
-            questionRepo.save(q);
         }
 
         quiz.setStatus(QuizStatus.READY);
