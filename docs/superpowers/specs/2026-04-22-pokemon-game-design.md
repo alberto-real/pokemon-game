@@ -6,7 +6,7 @@
 
 ## 1. Resumen ejecutivo
 
-`pokemon-game` es una app web de juego diario estilo Wordle sobre Pokemon: cada día se revela progresivamente una imagen difuminada de un Pokemon que el usuario debe adivinar por voz. Tras acertar o rendirse se abre un quiz de 5 preguntas de opción múltiple sobre ese Pokemon, respondible también por voz y con las preguntas leídas en alto mediante TTS neural.
+`pokemon-game` es una app web de juego diario estilo Wordle sobre Pokemon: cada día se revela progresivamente una imagen difuminada de un Pokemon que el usuario debe adivinar por voz. Tras acertar o rendirse se abre un quiz de 5 preguntas de opción múltiple sobre ese Pokemon, respondible también por voz y con las preguntas leídas en alto mediante el `speechSynthesis` nativo del navegador.
 
 Es el primero de dos sub-proyectos. Un segundo proyecto, `notification-service` (fuera de alcance de este spec), añadirá notificaciones push diarias transversales a cualquier app.
 
@@ -19,7 +19,7 @@ Target inicial: **local-first**, self-contained, portable hacia una futura plata
 - Un único Pokemon diario compartido (Wordle-style).
 - Reconocimiento de voz para adivinar el nombre y responder el quiz, sin IA en el pipeline de voz.
 - Generación del quiz con LLM local (Ollama) y fallback a Groq free tier.
-- Audio de las preguntas pre-generado con Google Cloud TTS neural y cacheado.
+- Audio TTS de las preguntas reproducido por el navegador vía `speechSynthesis` (`es-ES`), sin backend de audio.
 - Auto-detección del tema (claro/oscuro) del sistema operativo del usuario.
 - **UI bilingüe** (castellano por defecto, inglés disponible) con `@ngx-translate/core`. El contenido del juego (voz, preguntas, Pokémon) permanece en castellano.
 - Código portable al futuro monorepo Nx + Keycloak + Cloudflare Tunnel en OCI, sin reescritura.
@@ -33,6 +33,8 @@ Target inicial: **local-first**, self-contained, portable hacia una futura plata
 - Cola de mensajería (→ se introduce con `notification-service`).
 - Backfill de quizzes pasados.
 - Ranking, rachas, estadísticas sociales (fuera del MVP).
+- Generación de audio server-side (Google Cloud TTS, Piper, Coqui). El navegador hace TTS.
+- Almacenamiento de MP3s en disco. No hay audio persistido.
 
 ## 3. Alcance y sub-proyectos
 
@@ -50,27 +52,20 @@ Este spec cubre **solo** `pokemon-game`. La ruta global del proyecto personal de
 │                                                                 │
 │  [ Angular 21 app ] ── HTTP ──▶ [ Spring Boot API ]             │
 │       │                              │                          │
-│       │ Web Speech API               │ JPA / Flyway             │
-│       │ (STT en-español)             ▼                          │
+│       │ Web Speech API (STT)         │ JPA / Flyway             │
+│       │ speechSynthesis (TTS)        ▼                          │
 │       │                         [ Postgres 17 ]                 │
-│       │ <audio src=...>              │                          │
-│       ▼                              │                          │
-│   MP3 estáticos  ◀── static files ───┤                          │
-│                                      │                          │
-│                                      │ Spring AI                │
-│                                      ▼                          │
-│                          [ Ollama (Docker) ]                    │
-│                          llama3.2:3b o qwen2.5:7b               │
+│       │                              │                          │
+│       │                              │ Spring AI                │
+│       │                              ▼                          │
+│       │                  [ Ollama (Docker) ]                    │
+│       │                  llama3.2:3b                            │
+│       │                              │ fallback (env)           │
+│       │                              ▼                          │
+│       │                  [ Groq + OpenRouter ]                  │
 │                                                                 │
-│                                      │ fallback (env var)       │
-│                                      ▼                          │
-│                          [ Groq API (free tier) ]               │
-│                                                                 │
-│                          [ Google Cloud TTS neural ]            │
-│                          genera MP3 al crear el quiz del día    │
+│  Datos externos: PokeAPI                                        │
 └─────────────────────────────────────────────────────────────────┘
-
-Datos externos: PokeAPI — catálogo, imágenes, tipos, evoluciones, etc.
 ```
 
 ## 5. Mecánica del juego
@@ -94,7 +89,7 @@ Flujo de una partida diaria:
 7. Si acierta: revela el Pokemon + nombre, score nombre = `5 - (intentos_usados - 1)` (max 5, min 1).
 8. Si agota los 5 intentos o pulsa "Me rindo" antes: revela igual, score nombre = 0.
 9. Transición al **Quiz** (siempre obligatorio, acierte o se rinda).
-10. Quiz: 5 preguntas de opción múltiple. Cada pregunta se lee con `<audio>` (MP3 pre-generado) al mostrarla. Usuario responde por voz → frontend envía transcript → backend lo parsea (letra / ordinal / contenido) y valida. 1 pt por acierto.
+10. Quiz: 5 preguntas de opción múltiple. Cada pregunta se lee con `speechSynthesis` del navegador al mostrarla. Usuario responde por voz → frontend envía transcript → backend lo parsea (letra / ordinal / contenido) y valida. 1 pt por acierto.
 11. Score final del día = `nombre (0-5) + quiz (0-5)` = `0-10`.
 12. Se persiste en `user_daily_attempt`.
 
@@ -114,7 +109,7 @@ CREATE TABLE daily_pokemon (
 -- Quiz del día con estado de generación
 CREATE TABLE daily_quiz (
   date DATE PRIMARY KEY REFERENCES daily_pokemon(date) ON DELETE CASCADE,
-  status TEXT NOT NULL,               -- PENDING | GENERATING_QUIZ | GENERATING_AUDIO | READY | FAILED
+  status TEXT NOT NULL,               -- PENDING | GENERATING_QUIZ | READY | FAILED
   status_message TEXT,                -- diagnóstico si FAILED
   started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   ready_at TIMESTAMPTZ
@@ -124,13 +119,11 @@ CREATE TABLE daily_quiz (
 CREATE TABLE daily_quiz_question (
   id BIGSERIAL PRIMARY KEY,
   quiz_date DATE NOT NULL REFERENCES daily_quiz(date) ON DELETE CASCADE,
-  position INT NOT NULL,              -- 1..5
+  position INT NOT NULL,
   question_text TEXT NOT NULL,
-  options JSONB NOT NULL,             -- ["Kanto","Johto","Hoenn","Sinnoh"]
-  correct_option_index INT NOT NULL,  -- 0..3
-  audio_question_path TEXT,           -- ruta relativa al MP3 de la pregunta
-  audio_options_paths JSONB,          -- ["/audio/.../opt_1_0.mp3", ...] opcional
-  UNIQUE (quiz_date, position)
+  options JSONB NOT NULL,
+  correct_option_index INT NOT NULL,
+  CONSTRAINT uq_quiz_position UNIQUE (quiz_date, position)
 );
 
 -- Estado por usuario
@@ -160,16 +153,13 @@ Notas:
 - `GET  /api/game/today` — estado del día: blur level actual, intentos restantes, `quiz_status`.
 - `POST /api/game/today/attempt` — body `{ transcript }`. Response `{ correct, blurLevel, attemptsLeft, revealed? }`.
 - `POST /api/game/today/surrender` — Response `{ pokemon, quizReady }`.
-- `GET  /api/game/today/quiz` — preguntas + URLs de audio (si `READY`).
+- `GET  /api/game/today/quiz` — preguntas (si `READY`).
 - `POST /api/game/today/quiz/answer` — body `{ questionId, transcript }`. Response `{ correct, selectedIndex, nextQuestion? | finalScore }`.
 
 ### Admin (stub auth, solo en local)
 - `POST /api/admin/quiz/generate?date=YYYY-MM-DD`
 - `POST /api/admin/quiz/regenerate?date=YYYY-MM-DD`
 - `GET  /api/admin/quiz/status?date=YYYY-MM-DD`
-
-### Recursos estáticos
-- `GET /audio/{quiz_date}/{filename}.mp3` — servidos directamente por Spring Boot desde `./storage/audio/`.
 
 ## 8. Generación diaria del quiz
 
@@ -189,12 +179,7 @@ ensureTodaysQuizExists()    (idempotente, seguro ante concurrencia por UNIQUE(da
   │     · Fallback a Groq si Ollama falla o si config lo indica
   │     · INSERT INTO daily_quiz_question × 5
   │
-  ├─ 4. status=GENERATING_AUDIO
-  │     · Para cada pregunta y cada opción, Google Cloud TTS (es-ES Chirp3-HD)
-  │     · Guarda MP3s en ./storage/audio/{date}/q{N}.mp3 y opt_{N}_{i}.mp3
-  │     · UPDATE audio paths en daily_quiz_question
-  │
-  └─ 5. status=READY, ready_at=NOW()
+  └─ 4. status=READY, ready_at=NOW()
 ```
 
 **Triggers de invocación** (cualquiera de las tres, todas convergen al mismo método idempotente):
@@ -203,8 +188,7 @@ ensureTodaysQuizExists()    (idempotente, seguro ante concurrencia por UNIQUE(da
 - Endpoint admin manual (`POST /api/admin/quiz/generate`).
 
 **Errores**:
-- Ollama falla → reintenta 2 veces con backoff; si falla y `groq.fallback.enabled=true`, usa Groq; si también falla → `status=FAILED`.
-- Google TTS falla → `status=FAILED` parcial; el cliente cae a `SpeechSynthesis` del navegador con un banner.
+- Ollama falla → reintenta 2 veces con backoff; si falla y `pokemon-game.ai.groq.enabled=true`, usa Groq; si también falla → `status=FAILED`.
 
 ## 9. Frontend (Angular 21)
 
@@ -227,14 +211,14 @@ ensureTodaysQuizExists()    (idempotente, seguro ante concurrencia por UNIQUE(da
 - `GamePage` — orquesta el flujo del día, estado global con signals.
 - `PokemonCanvas` — muestra la imagen con filtros dinámicos (`brightness(0)` / `blur(Xpx)`) según `blurLevel` signal.
 - `VoiceRecorder` — wrapper sobre Web Speech API, emite transcript.
-- `QuizRunner` — itera preguntas, reproduce audio `<audio>`, captura respuesta.
+- `QuizRunner` — itera preguntas, reproduce la pregunta con `speechSynthesis`, captura respuesta.
 - `ScoreBoard` — muestra resultado final con componentes DaisyUI (card, badge, progress).
 - `AdminPage` — endpoints admin (stub auth).
 
 ### Servicios (inyectados vía `inject()`)
 - `GameApi` — wrapper sobre `httpResource()` y `HttpClient` para endpoints del juego.
 - `SpeechRecognizer` (interfaz) + `WebSpeechRecognizer` (implementación) + `NoopRecognizer` (fallback si no hay soporte).
-- `TtsPlayer` — reproduce MP3s de forma secuencial/on-demand.
+- `TtsPlayer` — envuelve `speechSynthesis` (voz `es-ES`), reproducción secuencial/on-demand.
 - `ApiClient` — tipos compartidos (generados desde OpenAPI o manuales).
 
 ### Rutas
@@ -263,27 +247,26 @@ ensureTodaysQuizExists()    (idempotente, seguro ante concurrencia por UNIQUE(da
 
 **Capa 2 (contenido del juego): monolingüe castellano**
 - STT: `lang='es-ES'` fijo.
-- TTS: voz `es-ES-Chirp3-HD-*` fija. No se generan MP3 en inglés.
+- TTS: `speechSynthesis` del navegador con voz `es-ES`. No se genera audio en inglés.
 - LLM: genera el quiz en castellano. No se generan quizzes paralelos en inglés.
 - Nombres Pokemon: el `pokemon_name_es` se muestra al usuario; el `pokemon_name` (inglés canónico) se usa internamente para matching.
 - Consecuencia: aunque el usuario cambie la UI a inglés, las preguntas, respuestas y audio del quiz siguen siendo en castellano. La UX es coherente: "juego en castellano con UI en el idioma preferido del usuario".
 
 **Scope futuro (fuera de este spec)**: bilingüismo completo (STT/TTS/LLM en ambos idiomas) → Plan separado si se necesita.
 
-## 10. Backend (Spring Boot 3.4 + Java 25)
+## 10. Backend (Spring Boot 3.5 + Java 25)
 
 ### Stack
-- Spring Boot 3.4.x, Java 25.
+- Spring Boot 3.5.x, Java 25.
 - Código compatible con GraalVM Native (sin reflection escondida; `@RegisterReflection` donde haga falta). Compilación JVM en local.
 - **Spring AI** para abstracción LLM (Ollama primario, Groq fallback).
 - Spring Data JPA + Postgres JDBC.
 - Flyway para migraciones desde día 1.
-- WebFlux opcional para clientes HTTP no bloqueantes (PokeAPI, Google TTS).
+- WebFlux opcional para clientes HTTP no bloqueantes (PokeAPI).
 
 ### Módulos (packages dentro del monolito modular)
 - `game` — core del juego, daily state, scoring.
 - `quiz` — generación del quiz, preguntas, respuestas.
-- `media` — TTS, storage, serving de MP3.
 - `pokeapi` — cliente HTTP a PokeAPI con cache en memoria.
 - `ai` — abstracción `QuizGenerator`, adapters Ollama/Groq.
 - `admin` — endpoints de administración (stub auth).
@@ -300,38 +283,34 @@ pokemon-game.scheduler.enabled=false
 pokemon-game.scheduler.cron=0 0 6 * * *
 pokemon-game.scheduler.zone=Europe/Madrid
 
-pokemon-game.ai.provider=ollama
-pokemon-game.ai.groq.fallback.enabled=false
+pokemon-game.ai.provider=stub
+pokemon-game.ai.groq.enabled=false
 pokemon-game.ai.groq.api-key=${GROQ_API_KEY:}
-
-pokemon-game.tts.provider=google
-pokemon-game.tts.google.credentials-path=./secrets/gcp-tts.json
-pokemon-game.tts.voice=es-ES-Chirp3-HD-Zephyr
-
-pokemon-game.storage.audio-dir=./storage/audio
+pokemon-game.ai.openrouter.enabled=false
+pokemon-game.ai.openrouter.api-key=${OPENROUTER_API_KEY:}
 
 pokemon-game.auth.stub-user=dev
 ```
 
 ## 11. Reconocimiento de voz y TTS
 
-### STT (voz → texto) — **cero IA**
-- Cliente: **Web Speech API** (`SpeechRecognition`) con `lang='es-ES'`, `continuous=false`, `interimResults=false`.
-- Fallback si el navegador no la soporta: input de texto visible.
-- Post-procesado **en el servidor**: normalización Unicode (tildes, minúsculas) + fuzzy matching Levenshtein ratio ≥ 0.75 contra lista cerrada (nombres Pokemon) o contra las 4 opciones del quiz.
-- Aceptamos nombres en castellano y en inglés (coinciden ~95 % para Pokemon).
+### STT (voz → texto) — cero IA
+- Cliente: Web Speech API (`SpeechRecognition`) con `lang='es-ES'`.
+- Fallback: input de texto si el navegador no soporta la API.
+- Post-procesado en el servidor: normalización Unicode + fuzzy matching (Levenshtein ratio ≥ 0.75) contra lista cerrada.
 
-### TTS (texto → voz) — **neural cacheado, prácticamente gratis**
-- Backend: **Google Cloud TTS** neural (voz `es-ES-Chirp3-HD-*`). Genera los MP3 al crear el quiz del día y los guarda en disco.
-- Uso estimado: ~700 chars/día → ~21 k/mes → cabe holgadamente en el free tier de 1 M chars/mes.
-- Cliente: `<audio>` tag nativo, cero JS complejo.
-- Fallback si el MP3 no existe (por `FAILED` parcial): `SpeechSynthesis` del navegador con banner informativo.
+### TTS (texto → voz) — cliente nativo, cero coste, cero infraestructura
+- Cliente: `speechSynthesis.speak(new SpeechSynthesisUtterance(text))` con `voice.lang='es-ES'`.
+- No hay backend de audio ni MP3s almacenados.
+- Calidad: la del TTS nativo del SO (Siri en iOS, Google TTS en Android, voces del sistema en desktop).
+- Trade-off aceptado: voz menos premium que neural cloud, a cambio de simplicidad total.
+- Si en el futuro se quiere audio neural: se añade `TextToSpeechService` como interfaz + adaptador (ElevenLabs, Google Cloud TTS…). No bloquea nada del diseño actual.
 
 ## 12. Estrategia de testing
 
 ### Backend
 - Unit: scoring, matching, selección aleatoria no repetitiva, normalización.
-- Integration (**Testcontainers**): Postgres real; mocks para PokeAPI, Ollama, Google TTS.
+- Integration (**Testcontainers**): Postgres real; mocks para PokeAPI, Ollama.
 - Tests de idempotencia de `ensureTodaysQuizExists()` con invocaciones concurrentes.
 
 ### Frontend
@@ -350,14 +329,13 @@ Servicios:
 - (Opcional) `backend` y `frontend` dockerizados para arranque completo; en desarrollo típico se ejecutan desde IDE.
 
 Volúmenes:
-- Bind mount `./storage/audio/` para los MP3.
 - Volumen named para Ollama models cache.
 
 ## 14. Secrets y configuración local
 
-- `GROQ_API_KEY` opcional (si `groq.fallback.enabled=true`) → `.env.local` (gitignored).
-- `./secrets/gcp-tts.json` → service account JSON de Google Cloud (gitignored).
-- `README.md` del repo documentará cómo obtener cada uno en free tier y cómo configurarlo.
+- `GROQ_API_KEY` (opcional, activa el segundo tier de la cadena IA) → `.env.local` (gitignored).
+- `OPENROUTER_API_KEY` (opcional, activa el tercer tier) → `.env.local`.
+- Sin ellas, Ollama local cubre la generación de quiz.
 
 ## 15. Migración futura a OCI (contexto, no alcance aquí)
 
@@ -380,8 +358,6 @@ El diseño actual no bloquea ninguno de estos pasos: folder layout Nx-compatible
 | Ollama consume demasiada RAM en el laptop | Modelo 3B Q4; alternativamente Groq free tier (14 400 req/día) |
 | Calidad del quiz generado (alucinaciones) | RAG: pasar datos de PokeAPI como contexto, prohibir conocimiento paramétrico |
 | PokeAPI rate limit (100/min) | Cache en memoria; 1 Pokemon/día consume <5 requests |
-| Google Cloud TTS free tier insuficiente | ~21 k chars/mes vs 1 M gratis → 50× margen |
-| `./storage/audio` crece sin límite | Purga mensual manual (fuera del MVP) |
 | Reflection Angular/Spring rompe Native en migración | Desde día 1: evitar reflexión, usar `@RegisterReflection` donde aplique |
 
 ---
@@ -396,9 +372,9 @@ El diseño actual no bloquea ninguno de estos pasos: folder layout Nx-compatible
 | Tailwind CSS | 4.2.x |
 | DaisyUI | 5.5.x |
 | @ngx-translate/core + /http-loader | 17.0.x |
-| Java | 25 |
-| Spring Boot | 3.4.x |
-| Spring AI | versión compatible con Spring Boot 3.4 |
+| Java | 25 (GraalVM CE 25.0.2) |
+| Spring Boot | 3.5.x |
+| Spring AI | 1.0.x (compatible con Spring Boot 3.5) |
 | Postgres | 17 |
-| Ollama | última estable |
-| Flyway | alineado con Spring Boot 3.4 BOM |
+| Ollama | última estable + modelo llama3.2:3b |
+| Flyway | alineado con Spring Boot 3.5 BOM |
