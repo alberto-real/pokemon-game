@@ -1,59 +1,60 @@
-# FrontendTmp
+# pokemon-game — frontend
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.7.
+Angular 21 standalone zoneless app with Tailwind 4 + DaisyUI 5 + ngx-translate 17.
 
-## Development server
+## Prerequisites
 
-To start a local development server, run:
+- Node 24, npm 11, Angular CLI 21.2.x
+- Backend running on `localhost:8080` (see `../backend/README.md`)
 
-```bash
-ng serve
-```
-
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+## Run
 
 ```bash
-ng generate component component-name
+npm install
+npm start
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+Open <http://localhost:4200/>. The dev server proxies `/api/*` to the backend.
+
+## Build
 
 ```bash
-ng generate --help
+npm run build
 ```
 
-## Building
+Artifacts in `dist/frontend/browser/`.
 
-To build the project run:
+## Stack notes
 
-```bash
-ng build
+- **Standalone components only**, no NgModules.
+- **Zoneless change detection** (`provideZonelessChangeDetection`).
+- **Signals** (`signal`, `computed`, `input`, `output`) for state.
+- **Tailwind 4 CSS-first**: no `tailwind.config.js`. Tokens and plugins live in `src/styles.css`.
+- **DaisyUI 5 plugin**: themes `light`/`dark` auto-switch based on `prefers-color-scheme`.
+- **ngx-translate 17**: JSON files in `public/i18n/{es,en}.json`. Default `es`, browser detection with `localStorage` override.
+- **Voice**:
+  - STT: Web Speech API via `SpeechRecognizerService` (`es-ES`).
+  - TTS: `window.speechSynthesis` via `TtsPlayerService` (`es-ES`).
+  - Fallback to text input if `SpeechRecognition` is not supported.
+
+## Project structure
+
+```
+src/app/
+├── api/                 # HTTP types + GameApi service
+├── game/                # GamePage, PokemonCanvas, QuizRunner
+├── voice/               # SpeechRecognizer, TtsPlayer, VoiceRecorder component
+├── i18n/                # LanguageService, LanguageSwitcher
+├── landing/             # Landing page
+├── admin/               # Admin page
+├── app.ts               # App shell with navbar
+├── app.html             # Shell template
+├── app.config.ts        # Providers (router, http, translate, zoneless)
+└── app.routes.ts        # Lazy routes
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+## Routes
 
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+- `/` — landing
+- `/game` — today's game (lazy)
+- `/admin` — admin endpoints UI (lazy)
