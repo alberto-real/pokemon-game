@@ -1,69 +1,71 @@
 # pokemon-game — backend
 
-Spring Boot 3.5 + Java 25 backend for the daily Pokemon guessing game.
+Spring Boot 3.5 + Java 25 backend for the daily Pokemon guessing game with real AI quiz generation.
 
 ## Stack
 
-- Spring Boot 3.5.5
-- Java 25 (GraalVM CE, pinned in `.sdkmanrc`)
-- Postgres 17 (via Docker Compose at repo root)
-- Flyway for DB migrations
-- Testcontainers for integration tests
+- Spring Boot 3.5.5 + Java 25 (GraalVM CE, pinned in `.sdkmanrc`)
+- Postgres 17 via Docker Compose
+- Spring AI 1.1.x — three-tier chain: **Groq (70B)** → **OpenRouter (70B)** → **Ollama (local 3B)**
+- Flyway for DB migrations, Testcontainers for integration tests
+- No server-side audio: the browser does TTS via `speechSynthesis` (Plan 3 frontend).
 
 ## Prerequisites
 
-1. SDKMAN with `java 25.0.2-graalce` installed. From repo root:
+1. SDKMAN with `java 25.0.2-graalce`:
    ```bash
    sdk install java 25.0.2-graalce
    ```
-2. Docker running (for Postgres + Testcontainers).
+2. Docker running (Postgres + Testcontainers).
+3. Ollama daemon on `localhost:11434` with a model pulled:
+   ```bash
+   ollama pull llama3.2:latest
+   ```
+4. Optional API keys in `../../.env.local` (gitignored):
+   - `GROQ_API_KEY=...` (console.groq.com, free tier) — **strongly recommended**
+   - `OPENROUTER_API_KEY=...` (openrouter.ai)
 
-## Run the backend in local
+   Without keys the chain collapses to Ollama-only. The 3B local model produces valid JSON but hallucinated `correctIndex`, so real play is much better with Groq enabled.
 
-From the repo root:
+## Run locally
 
 ```bash
-# 1. Start Postgres
+cd /home/fenix/Documents/develop/pokemon-game
 docker compose -f infra/docker-compose.yml up -d
 
-# 2. Activate Java 25 for this project (inside apps/backend/)
 cd apps/backend
-sdk env                       # picks 25.0.2-graalce from .sdkmanrc
-# or manually:
-# export JAVA_HOME=/home/fenix/.sdkman/candidates/java/25.0.2-graalce
-# export PATH=$JAVA_HOME/bin:$PATH
-
-# 3. Run Spring with the `local` profile
+sdk env
+set -a && source ../../.env.local && set +a
 SPRING_PROFILES_ACTIVE=local ./mvnw spring-boot:run
 ```
 
-Startup will:
-- Run Flyway migrations (V1 initial schema)
-- Ensure today's quiz exists (stub generator + stub TTS, Plan 1)
-- Expose HTTP on `http://localhost:8080`
+Startup flow:
+1. Flyway migrations V1 + V2 applied.
+2. `DailyQuizStartupRunner` calls `orchestrator.ensureExists(today)`.
+3. `PokemonSelector` picks a random non-repeated Pokemon id (1..1025).
+4. `PokeApiClient` fetches `/pokemon`, `/pokemon-species`, `/evolution-chain`.
+5. `RagContextBuilder` formats facts into a Spanish context block.
+6. `ChainQuizGenerator` tries Groq → OpenRouter → Ollama; first success wins.
+7. 5 questions persisted, quiz status `READY`.
 
 ## HTTP endpoints
 
-### Game (user flow)
-- `GET  /api/game/today` — current state (bootstraps the day on first call)
+### Game
+- `GET  /api/game/today`
 - `POST /api/game/today/attempt` — body `{ "transcript": "pikachu" }`
 - `POST /api/game/today/surrender`
 
-### Quiz (user flow)
-- `GET  /api/game/today/quiz` — returns 5 questions + audio paths
+### Quiz
+- `GET  /api/game/today/quiz`
 - `POST /api/game/today/quiz/answer/{questionId}` — body `{ "transcript": "A" }`
 
-### Admin (stub auth only — local use)
-- `POST /api/admin/quiz/generate?date=YYYY-MM-DD` (date optional, defaults to today)
+### Admin (stub auth)
+- `POST /api/admin/quiz/generate?date=YYYY-MM-DD`
 - `POST /api/admin/quiz/regenerate?date=YYYY-MM-DD`
 - `GET  /api/admin/quiz/status?date=YYYY-MM-DD`
 
-### Audio
-- `GET  /audio/{date}/{filename}.mp3` — serves generated MP3s
-
 ### Actuator
 - `GET  /actuator/health`
-- `GET  /actuator/info`
 
 ## Tests
 
@@ -71,42 +73,45 @@ Startup will:
 ./mvnw test
 ```
 
-First run downloads the `postgres:17-alpine` image for Testcontainers.
+44 tests, all passing. First run pulls `postgres:17-alpine` for Testcontainers. The AI chain is NOT hit in tests (provider defaults to `stub`).
 
-## State of Plan 1 (current)
-
-Plan 1 focused on the **backend foundation with stubs**. The following are in place and exercised by tests:
-
-- Schema, entities, repos (DailyPokemon, DailyQuiz, DailyQuizQuestion, UserDailyAttempt)
-- Fuzzy matchers (name + multiple-choice)
-- PokeAPI client with in-memory cache
-- Quiz orchestrator state machine (PENDING → GENERATING_QUIZ → GENERATING_AUDIO → READY)
-- Full game + quiz REST surface (game, quiz, admin, audio)
-- Startup runner + optional cron scheduler
-
-**Stubs** — replaced in Plan 2:
-- `StubQuizGenerator` (5 hardcoded questions about the Pokemon) → will be swapped for Ollama + Groq via Spring AI.
-- `StubTtsService` (returns placeholder bytes) → will be swapped for Google Cloud TTS neural (es-ES).
-
-## Configuration
-
-Most settings are sensible defaults. Override via env vars or `-D` flags.
+## Configuration reference
 
 | Property | Default | Purpose |
 |---|---|---|
-| `pokemon-game.pokeapi.base-url` | `https://pokeapi.co/api/v2` | PokeAPI endpoint |
-| `pokemon-game.storage.audio-dir` | `./storage/audio` | Where MP3s are saved |
-| `pokemon-game.auth.stub-user` | `dev` | Stub user id until Keycloak arrives |
-| `pokemon-game.scheduler.enabled` | `false` | Enable the `@Scheduled` daily job |
-| `pokemon-game.scheduler.cron` | `0 0 6 * * *` | Cron expression |
-| `pokemon-game.scheduler.zone` | `Europe/Madrid` | Time zone for the scheduler |
+| `pokemon-game.ai.provider` | `stub` (default) / `chain` (local profile) | Select stub vs real chain |
+| `pokemon-game.ai.ollama.base-url` | `http://localhost:11434` | Ollama endpoint |
+| `pokemon-game.ai.ollama.model` | `llama3.2:latest` | Local model tag |
+| `spring.ai.ollama.chat.options.num-predict` | `2048` | Token budget for 5-question JSON |
+| `pokemon-game.ai.groq.enabled` | `false` (default) / `true` (local) | Include Groq in chain |
+| `pokemon-game.ai.groq.api-key` | `${GROQ_API_KEY:}` | From `.env.local` |
+| `pokemon-game.ai.groq.model` | `llama-3.3-70b-versatile` | Hosted 70B model |
+| `pokemon-game.ai.openrouter.enabled` | `false` / `true` (local) | Include OpenRouter |
+| `pokemon-game.ai.openrouter.api-key` | `${OPENROUTER_API_KEY:}` | From `.env.local` |
+| `pokemon-game.ai.openrouter.model` | `meta-llama/llama-3.3-70b-instruct:free` | Free-tier hosted model |
+| `pokemon-game.pokeapi.base-url` | `https://pokeapi.co/api/v2` | PokeAPI |
+| `pokemon-game.auth.stub-user` | `dev` | User id until Keycloak |
+| `pokemon-game.scheduler.enabled` | `false` | `@Scheduled(cron=0 0 6 * * *)` zone Europe/Madrid |
+
+## Chain order and quality
+
+`ChainQuizGenerator` iterates providers and falls back on any exception:
+
+| Priority | Provider | Why here |
+|---|---|---|
+| 1 | Groq (`llama-3.3-70b-versatile`) | Fastest (~6 s), best quality, 14 400 req/day free |
+| 2 | OpenRouter (Llama 3.3 70B free) | Second hosted tier, different rate-limit pool |
+| 3 | Ollama (`llama3.2:latest`, 3B) | Offline fallback, ~30 s, occasional hallucinations |
+
+At least one must succeed; otherwise the daily quiz stays in `GENERATING_QUIZ` and the transaction rolls back so `ensureExists` is safe to retry.
 
 ## Auth
 
-Plan 1 uses a hardcoded `user_id = "dev"` via `CurrentUser`. Plan 3 (or post-OCI migration) will replace this with Keycloak OIDC + PKCE.
+Stub: `user_id = "dev"` via `CurrentUser`. Keycloak comes with OCI migration.
 
-## Known limitations (addressed in later plans)
+## Known limitations
 
-- `MultipleChoiceMatcher` prioritizes ordinal words over content substrings; an option whose text happens to be an ordinal word ("Una") is resolved as the ordinal. Use letter transcripts (A/B/C/D) for unambiguous voice answers, or reorder the rules (Plan 2 candidate).
-- No real LLM or TTS wiring — Plan 2.
-- No frontend — Plan 3.
+- `MultipleChoiceMatcher` prioritises ordinal words over literal content. An option whose text is an ordinal (e.g. "Una") resolves as the ordinal. Voice answers with letters (A/B/C/D) are unambiguous.
+- Ollama 3B quality is unreliable; rely on Groq unless you specifically want offline behaviour.
+- `daily_pokemon` pool of 1 025 will exhaust after ~3 years of daily play.
+- `GameServiceTest` shares a `PokemonNameCatalog` singleton across contexts and can occasionally flake on bulk test runs; isolated retries always pass.
