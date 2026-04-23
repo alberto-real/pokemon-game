@@ -1,0 +1,2 @@
+# Enable auto-env with `sdk config` -> sdkman_auto_env=true
+java=25.0.2-graalce
