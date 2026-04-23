@@ -1,6 +1,9 @@
 package com.albertoreal.pokemongame.quiz;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import java.time.LocalDate;
 import java.util.List;
 
@@ -21,7 +24,7 @@ public class DailyQuizQuestion {
     @Column(name = "question_text", nullable = false)
     private String questionText;
 
-    @Convert(converter = StringListJsonConverter.class)
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false, columnDefinition = "jsonb")
     private List<String> options;
 
@@ -31,7 +34,7 @@ public class DailyQuizQuestion {
     @Column(name = "audio_question_path")
     private String audioQuestionPath;
 
-    @Convert(converter = StringListJsonConverter.class)
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "audio_options_paths", columnDefinition = "jsonb")
     private List<String> audioOptionsPaths;
 

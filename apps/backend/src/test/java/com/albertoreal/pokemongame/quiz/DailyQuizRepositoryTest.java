@@ -29,10 +29,7 @@ class DailyQuizRepositoryTest {
 
     @DynamicPropertySource
     static void props(DynamicPropertyRegistry r) {
-        r.add("spring.datasource.url", () -> {
-            String url = postgres.getJdbcUrl();
-            return url + (url.contains("?") ? "&" : "?") + "stringtype=unspecified";
-        });
+        r.add("spring.datasource.url", postgres::getJdbcUrl);
         r.add("spring.datasource.username", postgres::getUsername);
         r.add("spring.datasource.password", postgres::getPassword);
     }
