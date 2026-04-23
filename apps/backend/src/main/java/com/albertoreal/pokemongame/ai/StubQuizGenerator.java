@@ -2,15 +2,16 @@ package com.albertoreal.pokemongame.ai;
 
 import com.albertoreal.pokemongame.pokeapi.dto.PokemonDto;
 import com.albertoreal.pokemongame.pokeapi.dto.PokemonSpeciesDto;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Primary;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
 @Component
 @Primary
-@Profile("!ai-real")
+@ConditionalOnProperty(prefix = "pokemon-game.ai", name = "provider",
+                       havingValue = "stub", matchIfMissing = true)
 public class StubQuizGenerator implements QuizGenerator {
 
     @Override
