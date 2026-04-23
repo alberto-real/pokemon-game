@@ -1,0 +1,31 @@
+{
+  "app": {
+    "title": "Pokemon Game",
+    "language": "Idioma"
+  },
+  "landing": {
+    "cta": "Empezar el juego de hoy"
+  },
+  "game": {
+    "attempts_remaining": "{{n}} intentos restantes",
+    "record": "Grabar",
+    "stop": "Detener",
+    "surrender": "Me rindo",
+    "correct": "¡Correcto!",
+    "incorrect": "Incorrecto",
+    "revealed": "Era {{name}}",
+    "voice_not_detected": "No te he oído, repite por favor"
+  },
+  "quiz": {
+    "question_of": "Pregunta {{n}} de {{total}}",
+    "play": "Reproducir",
+    "next": "Siguiente",
+    "final_score": "Puntuación final: {{score}}/10"
+  },
+  "admin": {
+    "title": "Administración",
+    "generate": "Generar hoy",
+    "regenerate": "Regenerar fecha",
+    "status": "Estado"
+  }
+}
