@@ -3,6 +3,8 @@ package com.albertoreal.pokemongame.ai;
 import com.albertoreal.pokemongame.pokeapi.dto.PokemonDto;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class StubQuizGeneratorTest {
@@ -10,7 +12,7 @@ class StubQuizGeneratorTest {
     @Test
     void returnsFivePokemonSpecificQuestions() {
         var gen = new StubQuizGenerator();
-        var pokemon = new PokemonDto(25, "pikachu", null);
+        var pokemon = new PokemonDto(25, "pikachu", 4, 60, null, List.of(), List.of());
         var questions = gen.generate(pokemon, null);
 
         assertThat(questions).hasSize(5);
@@ -22,7 +24,7 @@ class StubQuizGeneratorTest {
     @Test
     void everyQuestionHasFourOptions() {
         var gen = new StubQuizGenerator();
-        var pokemon = new PokemonDto(25, "pikachu", null);
+        var pokemon = new PokemonDto(25, "pikachu", 4, 60, null, List.of(), List.of());
         var questions = gen.generate(pokemon, null);
         for (var q : questions) {
             assertThat(q.options()).hasSize(4);

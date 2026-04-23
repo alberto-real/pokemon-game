@@ -54,10 +54,12 @@ class EndToEndGameIT {
 
     @BeforeEach
     void seed() {
-        when(pokeApi.getPokemon(anyInt())).thenReturn(new PokemonDto(25, "pikachu", null));
+        when(pokeApi.getPokemon(anyInt())).thenReturn(
+            new PokemonDto(25, "pikachu", 4, 60, null, List.of(), List.of()));
         when(pokeApi.getSpecies(anyInt())).thenReturn(
             new PokemonSpeciesDto(25, List.of(
-                new PokemonSpeciesDto.Name("Pikachu", new PokemonSpeciesDto.Language("es")))));
+                new PokemonSpeciesDto.Name("Pikachu", new PokemonSpeciesDto.Language("es"))),
+                null, null));
         attemptRepo.deleteAll();
     }
 
