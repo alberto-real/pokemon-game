@@ -6,6 +6,7 @@ import { GameApi } from '../api/game-api.service';
 import { QuestionView, QuizAnswerResult } from '../api/types';
 import { TtsPlayerService } from '../voice/tts-player.service';
 import { VoiceRecorderComponent } from '../voice/voice-recorder.component';
+import { ConfettiService } from './confetti.service';
 
 @Component({
   selector: 'app-quiz-runner',
@@ -63,6 +64,7 @@ import { VoiceRecorderComponent } from '../voice/voice-recorder.component';
 export class QuizRunnerComponent implements OnInit {
   private readonly api = inject(GameApi);
   private readonly tts = inject(TtsPlayerService);
+  private readonly confetti = inject(ConfettiService);
 
   readonly completed = output<number>();
 
@@ -116,12 +118,16 @@ export class QuizRunnerComponent implements OnInit {
     try {
       const r = await this.api.answer(q.id, transcript);
       this.lastResult.set(r);
+      if (r.correct) this.confetti.burst();
       // Show the feedback longer when wrong so the user can read the
       // correct-answer hint.
       const delay = r.correct ? 1500 : 3500;
       if (r.quizComplete) {
         this.finalScore.set(r.totalScore ?? 0);
         this.question.set(null);
+        if (r.quizScore === (this.total() ?? 0) && (this.total() ?? 0) > 0) {
+          this.confetti.celebrate();
+        }
         setTimeout(() => this.completed.emit(r.totalScore ?? 0), delay);
       } else {
         setTimeout(() => {
