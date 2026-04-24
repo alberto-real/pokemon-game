@@ -29,8 +29,10 @@ import { SpeechRecognizerService } from './speech-recognizer.service';
           (keyup.enter)="submitText($event)"
         />
       }
-      @if (lastError()) {
-        <div class="alert alert-warning text-xs">{{ lastError() }}</div>
+      @if (errorKey(); as key) {
+        <div class="alert alert-warning text-xs">
+          {{ key | translate }}
+        </div>
       }
     </div>
   `,
@@ -40,7 +42,7 @@ export class VoiceRecorderComponent {
   readonly transcript = output<string>();
 
   protected readonly busy = signal(false);
-  protected readonly lastError = signal<string | null>(null);
+  protected readonly errorKey = signal<string | null>(null);
 
   async toggle(): Promise<void> {
     if (this.recognizer.listening()) {
@@ -48,12 +50,13 @@ export class VoiceRecorderComponent {
       return;
     }
     this.busy.set(true);
-    this.lastError.set(null);
+    this.errorKey.set(null);
     try {
       const text = await this.recognizer.start('es-ES');
       if (text.trim()) this.transcript.emit(text);
     } catch (err) {
-      this.lastError.set(err instanceof Error ? err.message : String(err));
+      console.warn('Speech recognition failed', err);
+      this.errorKey.set('game.voice_not_detected');
     } finally {
       this.busy.set(false);
     }
