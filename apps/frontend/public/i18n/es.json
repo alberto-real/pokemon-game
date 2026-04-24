@@ -20,7 +20,8 @@
     "question_of": "Pregunta {{n}} de {{total}}",
     "play": "Reproducir",
     "next": "Siguiente",
-    "final_score": "Puntuación final: {{score}}/10"
+    "final_score": "Puntuación final: {{score}}/10",
+    "wrong_answer": "No. La respuesta correcta es: {{answer}}"
   },
   "admin": {
     "title": "Administración",

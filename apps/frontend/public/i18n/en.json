@@ -20,7 +20,8 @@
     "question_of": "Question {{n}} of {{total}}",
     "play": "Play",
     "next": "Next",
-    "final_score": "Final score: {{score}}/10"
+    "final_score": "Final score: {{score}}/10",
+    "wrong_answer": "No. The correct answer is: {{answer}}"
   },
   "admin": {
     "title": "Admin",
