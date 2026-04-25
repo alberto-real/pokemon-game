@@ -52,7 +52,7 @@ class GameControllerIT {
         when(pokeApi.getSpecies(anyInt())).thenReturn(
             new PokemonSpeciesDto(25, List.of(
                 new PokemonSpeciesDto.Name("Pikachu", new PokemonSpeciesDto.Language("es"))),
-                null, null));
+                null, null, null));
         attemptRepo.deleteAll();
     }
 

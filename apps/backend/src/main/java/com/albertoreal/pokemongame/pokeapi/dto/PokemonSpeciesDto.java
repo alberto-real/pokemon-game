@@ -10,7 +10,8 @@ public record PokemonSpeciesDto(
     int id,
     List<Name> names,
     Generation generation,
-    @JsonProperty("evolution_chain") EvolutionChainRef evolutionChain
+    @JsonProperty("evolution_chain") EvolutionChainRef evolutionChain,
+    List<Genus> genera
 ) {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Name(String name, Language language) {}
@@ -24,11 +25,23 @@ public record PokemonSpeciesDto(
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record EvolutionChainRef(String url) {}
 
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record Genus(String genus, Language language) {}
+
     public String nameInLanguage(String lang) {
         if (names == null) return null;
         return names.stream()
             .filter(n -> n.language() != null && lang.equals(n.language().name()))
             .map(Name::name)
+            .findFirst()
+            .orElse(null);
+    }
+
+    public String genusInLanguage(String lang) {
+        if (genera == null) return null;
+        return genera.stream()
+            .filter(g -> g.language() != null && lang.equals(g.language().name()))
+            .map(Genus::genus)
             .findFirst()
             .orElse(null);
     }

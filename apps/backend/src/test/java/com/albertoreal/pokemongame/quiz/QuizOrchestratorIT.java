@@ -50,7 +50,7 @@ class QuizOrchestratorIT {
         when(pokeApi.getSpecies(anyInt())).thenReturn(
             new PokemonSpeciesDto(25, List.of(
                 new PokemonSpeciesDto.Name("Pikachu", new PokemonSpeciesDto.Language("es"))),
-                null, null));
+                null, null, null));
 
         var date = LocalDate.of(2026, 4, 22);
         orchestrator.ensureExists(date);

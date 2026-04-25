@@ -32,14 +32,14 @@ class PokeApiClientTest {
         var species = new PokemonSpeciesDto(25, List.of(
             new PokemonSpeciesDto.Name("Pikachu", new PokemonSpeciesDto.Language("en")),
             new PokemonSpeciesDto.Name("Pikachu", new PokemonSpeciesDto.Language("es"))
-        ), null, null);
+        ), null, null, null);
         assertThat(species.nameInLanguage("es")).isEqualTo("Pikachu");
         assertThat(species.nameInLanguage("fr")).isNull();
     }
 
     @Test
     void speciesDtoHandlesNullNames() {
-        var species = new PokemonSpeciesDto(25, null, null, null);
+        var species = new PokemonSpeciesDto(25, null, null, null, null);
         assertThat(species.nameInLanguage("es")).isNull();
     }
 
