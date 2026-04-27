@@ -14,7 +14,11 @@
     "correct": "¡Correcto!",
     "incorrect": "Incorrecto",
     "revealed": "Era {{name}}",
-    "voice_not_detected": "No te he oído, repite por favor"
+    "voice_not_detected": "No te he oído, repite por favor",
+    "attempts_history": "Intentos",
+    "no_attempts_yet": "Aún no has intentado ningún nombre",
+    "type_placeholder": "...o escribe la respuesta",
+    "send": "Enviar"
   },
   "quiz": {
     "question_of": "Pregunta {{n}} de {{total}}",

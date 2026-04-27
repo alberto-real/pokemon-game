@@ -7,6 +7,9 @@ import { GameState } from '../api/types';
 import { PokemonCanvasComponent } from './pokemon-canvas.component';
 import { VoiceRecorderComponent } from '../voice/voice-recorder.component';
 import { QuizRunnerComponent } from './quiz-runner.component';
+import { AttemptsHistoryComponent } from './attempts-history.component';
+
+const MAX_NAME_ATTEMPTS = 5;
 
 @Component({
   selector: 'app-game-page',
@@ -17,15 +20,29 @@ import { QuizRunnerComponent } from './quiz-runner.component';
     PokemonCanvasComponent,
     VoiceRecorderComponent,
     QuizRunnerComponent,
+    AttemptsHistoryComponent,
   ],
   template: `
     @if (state(); as s) {
-      <div class="container mx-auto max-w-2xl p-4 space-y-4">
-        <app-pokemon-canvas
-          [imageUrl]="s.imageUrl"
-          [blurLevel]="s.blurLevel"
-          [revealed]="s.nameSolved || s.nameSurrendered"
-        />
+      <div class="container mx-auto max-w-4xl p-4 space-y-4">
+        <div class="grid gap-4 md:grid-cols-2">
+          <app-pokemon-canvas
+            [imageUrl]="s.imageUrl"
+            [blurLevel]="s.blurLevel"
+            [revealed]="s.nameSolved || s.nameSurrendered"
+          />
+          <div class="flex flex-col gap-4 h-full">
+            <app-attempts-history
+              [attempts]="s.nameAttempts"
+              [max]="maxAttempts"
+            />
+            @if (s.nameSolved || s.nameSurrendered) {
+              <div class="alert alert-success mt-auto">
+                {{ 'game.revealed' | translate: { name: s.revealedNameEs } }}
+              </div>
+            }
+          </div>
+        </div>
 
         @if (!s.nameSolved && !s.nameSurrendered) {
           <div class="flex justify-between items-center">
@@ -37,14 +54,8 @@ import { QuizRunnerComponent } from './quiz-runner.component';
             </button>
           </div>
           <app-voice-recorder (transcript)="onAttempt($event)" />
-        } @else {
-          <div class="alert alert-success">
-            {{ 'game.revealed' | translate: { name: s.revealedNameEs } }}
-          </div>
-
-          @if (s.quizReady) {
-            <app-quiz-runner (completed)="onQuizComplete($event)" />
-          }
+        } @else if (s.quizReady) {
+          <app-quiz-runner (completed)="onQuizComplete($event)" />
         }
 
         @if (lastFeedback(); as f) {
@@ -69,6 +80,7 @@ import { QuizRunnerComponent } from './quiz-runner.component';
 export class GamePageComponent implements OnInit {
   private readonly api = inject(GameApi);
 
+  protected readonly maxAttempts = MAX_NAME_ATTEMPTS;
   protected readonly state = signal<GameState | null>(null);
   protected readonly lastFeedback = signal<{ ok: boolean } | null>(null);
   protected readonly finalScore = signal<number | null>(null);

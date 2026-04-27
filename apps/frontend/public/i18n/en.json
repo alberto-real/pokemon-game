@@ -14,7 +14,11 @@
     "correct": "Correct!",
     "incorrect": "Wrong",
     "revealed": "It was {{name}}",
-    "voice_not_detected": "I didn't catch that, please try again"
+    "voice_not_detected": "I didn't catch that, please try again",
+    "attempts_history": "Attempts",
+    "no_attempts_yet": "No attempts yet",
+    "type_placeholder": "...or type your answer",
+    "send": "Send"
   },
   "quiz": {
     "question_of": "Question {{n}} of {{total}}",

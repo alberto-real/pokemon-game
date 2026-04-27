@@ -1,13 +1,15 @@
 import { Component, inject, output, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { TranslateModule } from '@ngx-translate/core';
 import { SpeechRecognizerService } from './speech-recognizer.service';
+import { TtsPlayerService } from './tts-player.service';
 
 @Component({
   selector: 'app-voice-recorder',
   standalone: true,
-  imports: [TranslateModule],
+  imports: [TranslateModule, FormsModule],
   template: `
-    <div class="flex flex-col items-center gap-2 w-full">
+    <div class="flex flex-col items-stretch gap-2 w-full">
       @if (recognizer.available()) {
         <button
           class="btn btn-primary btn-lg gap-2 w-full"
@@ -21,14 +23,27 @@ import { SpeechRecognizerService } from './speech-recognizer.service';
             {{ 'game.record' | translate }}
           }
         </button>
-      } @else {
+      }
+
+      <form class="join w-full" (submit)="submit($event)">
         <input
           type="text"
-          class="input input-bordered w-full"
-          [placeholder]="'game.record' | translate"
-          (keyup.enter)="submitText($event)"
+          class="input input-bordered join-item flex-1"
+          [placeholder]="'game.type_placeholder' | translate"
+          [disabled]="recognizer.listening()"
+          [(ngModel)]="text"
+          name="text"
+          autocomplete="off"
         />
-      }
+        <button
+          type="submit"
+          class="btn btn-primary join-item"
+          [disabled]="!text().trim() || recognizer.listening()"
+        >
+          {{ 'game.send' | translate }}
+        </button>
+      </form>
+
       @if (errorKey(); as key) {
         <div class="alert alert-warning text-xs">
           {{ key | translate }}
@@ -39,16 +54,19 @@ import { SpeechRecognizerService } from './speech-recognizer.service';
 })
 export class VoiceRecorderComponent {
   protected readonly recognizer = inject(SpeechRecognizerService);
+  private readonly tts = inject(TtsPlayerService);
   readonly transcript = output<string>();
 
   protected readonly busy = signal(false);
   protected readonly errorKey = signal<string | null>(null);
+  protected readonly text = signal('');
 
   async toggle(): Promise<void> {
     if (this.recognizer.listening()) {
       this.recognizer.stop();
       return;
     }
+    this.tts.stop();
     this.busy.set(true);
     this.errorKey.set(null);
     try {
@@ -62,11 +80,11 @@ export class VoiceRecorderComponent {
     }
   }
 
-  submitText(ev: Event): void {
-    const input = ev.target as HTMLInputElement;
-    if (input.value.trim()) {
-      this.transcript.emit(input.value.trim());
-      input.value = '';
-    }
+  submit(ev: Event): void {
+    ev.preventDefault();
+    const value = this.text().trim();
+    if (!value) return;
+    this.transcript.emit(value);
+    this.text.set('');
   }
 }

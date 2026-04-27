@@ -22,6 +22,11 @@ export class TtsPlayerService {
       };
       u.onerror = (err) => {
         this.speaking.set(false);
+        const reason = (err as SpeechSynthesisErrorEvent).error;
+        if (reason === 'interrupted' || reason === 'canceled') {
+          resolve();
+          return;
+        }
         reject(err);
       };
       this.speaking.set(true);

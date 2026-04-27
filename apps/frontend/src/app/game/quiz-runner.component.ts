@@ -1,6 +1,6 @@
 import { Component, inject, signal, output, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
 import { GameApi } from '../api/game-api.service';
 import { QuestionView, QuizAnswerResult } from '../api/types';
@@ -15,8 +15,20 @@ import { ConfettiService } from './confetti.service';
   template: `
     @if (question(); as q) {
       <div class="card bg-base-200 p-4 space-y-3">
-        <div class="text-sm opacity-70">
-          {{ 'quiz.question_of' | translate: { n: q.position, total: total() } }}
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-sm opacity-70">
+            {{ 'quiz.question_of' | translate: { n: q.position, total: total() } }}
+          </span>
+          <button
+            class="btn btn-ghost btn-sm btn-circle"
+            [attr.aria-label]="'quiz.play' | translate"
+            [title]="'quiz.play' | translate"
+            (click)="playQuestion()"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </button>
         </div>
         <div class="text-xl font-semibold">{{ q.text }}</div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -27,12 +39,7 @@ import { ConfettiService } from './confetti.service';
             </div>
           }
         </div>
-        <div class="flex gap-2 items-center">
-          <button class="btn btn-sm btn-outline" (click)="playQuestion()">
-            {{ 'quiz.play' | translate }}
-          </button>
-          <app-voice-recorder class="flex-1" (transcript)="onAnswer($event)" />
-        </div>
+        <app-voice-recorder (transcript)="onAnswer($event)" />
         @if (lastResult(); as r) {
           <div
             class="alert"
@@ -65,6 +72,7 @@ export class QuizRunnerComponent implements OnInit {
   private readonly api = inject(GameApi);
   private readonly tts = inject(TtsPlayerService);
   private readonly confetti = inject(ConfettiService);
+  private readonly i18n = inject(TranslateService);
 
   readonly completed = output<number>();
 
@@ -118,7 +126,14 @@ export class QuizRunnerComponent implements OnInit {
     try {
       const r = await this.api.answer(q.id, transcript);
       this.lastResult.set(r);
-      if (r.correct) this.confetti.burst();
+      if (r.correct) {
+        this.confetti.burst();
+        this.speakFeedback('game.correct');
+      } else {
+        this.speakFeedback('quiz.wrong_answer', {
+          answer: q.options[r.correctIndex],
+        });
+      }
       // Show the feedback longer when wrong so the user can read the
       // correct-answer hint.
       const delay = r.correct ? 1500 : 3500;
@@ -143,5 +158,11 @@ export class QuizRunnerComponent implements OnInit {
 
   protected letter(i: number): string {
     return ['A', 'B', 'C', 'D'][i] ?? '?';
+  }
+
+  private speakFeedback(key: string, params?: Record<string, unknown>): void {
+    const text = this.i18n.instant(key, params);
+    if (!text) return;
+    void this.tts.speak(text, 'es-ES').catch(() => {});
   }
 }

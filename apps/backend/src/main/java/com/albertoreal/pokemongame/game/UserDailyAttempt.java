@@ -7,6 +7,7 @@ import org.hibernate.type.SqlTypes;
 import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -33,6 +34,10 @@ public class UserDailyAttempt {
 
     @Column(name = "name_score")
     private Integer nameScore;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "name_attempts", columnDefinition = "jsonb", nullable = false)
+    private List<String> nameAttempts = new ArrayList<>();
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "quiz_answers", columnDefinition = "jsonb")
@@ -66,6 +71,11 @@ public class UserDailyAttempt {
     public void setNameSurrendered(boolean v) { this.nameSurrendered = v; }
     public Integer getNameScore() { return nameScore; }
     public void setNameScore(Integer s) { this.nameScore = s; }
+    public List<String> getNameAttempts() {
+        if (nameAttempts == null) nameAttempts = new ArrayList<>();
+        return nameAttempts;
+    }
+    public void setNameAttempts(List<String> a) { this.nameAttempts = a; }
     public List<String> getQuizAnswers() { return quizAnswers; }
     public void setQuizAnswers(List<String> a) { this.quizAnswers = a; }
     public Integer getQuizScore() { return quizScore; }

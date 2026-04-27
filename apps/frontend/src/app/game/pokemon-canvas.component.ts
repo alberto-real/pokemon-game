@@ -25,11 +25,13 @@ export class PokemonCanvasComponent {
       case 0:
         return 'brightness(0)';
       case 1:
-        return 'blur(40px)';
+        return 'blur(16px) saturate(1.1)';
       case 2:
-        return 'blur(20px)';
-      case 3:
         return 'blur(10px)';
+      case 3:
+        return 'blur(5px)';
+      case 4:
+        return 'blur(2px)';
       default:
         return 'none';
     }

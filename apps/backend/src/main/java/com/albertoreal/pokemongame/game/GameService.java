@@ -1,6 +1,7 @@
 package com.albertoreal.pokemongame.game;
 
 import com.albertoreal.pokemongame.common.CurrentUser;
+import com.albertoreal.pokemongame.common.TextNormalizer;
 import com.albertoreal.pokemongame.quiz.DailyQuiz;
 import com.albertoreal.pokemongame.quiz.DailyQuizRepository;
 import com.albertoreal.pokemongame.quiz.QuizStatus;
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Service
 public class GameService {
@@ -62,8 +64,15 @@ public class GameService {
         if (correct) {
             attempt.setNameSolved(true);
             attempt.setNameScore(MAX_ATTEMPTS - (attempt.getNameAttemptsUsed() - 1));
-        } else if (attempt.getNameAttemptsUsed() >= MAX_ATTEMPTS) {
-            attempt.setNameScore(0);
+        } else {
+            String guess = matched.orElseGet(() -> TextNormalizer.normalize(transcript));
+            if (!guess.isEmpty()) {
+                attempt.getNameAttempts().add(guess);
+            }
+            if (attempt.getNameAttemptsUsed() >= MAX_ATTEMPTS) {
+                attempt.setNameSurrendered(true);
+                attempt.setNameScore(0);
+            }
         }
 
         attemptRepo.save(attempt);
@@ -94,6 +103,11 @@ public class GameService {
             || attempt.isNameSurrendered()
             || attempt.getNameAttemptsUsed() >= MAX_ATTEMPTS;
 
+        String answer = TextNormalizer.normalize(pokemon.getPokemonName());
+        List<NameAttemptView> attemptViews = attempt.getNameAttempts().stream()
+            .map(g -> new NameAttemptView(g, WordleEvaluator.evaluate(g, answer)))
+            .toList();
+
         return new GameState(
             attemptsLeft,
             blurLevel,
@@ -104,7 +118,8 @@ public class GameService {
             pokemon.getImageUrl(),
             attempt.getNameScore(),
             quiz.getStatus() == QuizStatus.READY,
-            quiz.getStatus().name()
+            quiz.getStatus().name(),
+            attemptViews
         );
     }
 }

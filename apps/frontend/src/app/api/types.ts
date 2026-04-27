@@ -1,3 +1,8 @@
+export interface NameAttemptView {
+  guess: string;
+  feedback: string;
+}
+
 export interface GameState {
   attemptsLeft: number;
   blurLevel: number;
@@ -9,6 +14,7 @@ export interface GameState {
   nameScore: number | null;
   quizReady: boolean;
   quizStatus: string;
+  nameAttempts: NameAttemptView[];
 }
 
 export interface AttemptResult {
