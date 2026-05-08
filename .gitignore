@@ -33,6 +33,7 @@ Thumbs.db
 # Env / secrets
 .env
 .env.local
+.env.prod
 .env.*.local
 secrets/
 *.pem
