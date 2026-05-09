@@ -53,7 +53,10 @@ const MAX_NAME_ATTEMPTS = 5;
               {{ 'game.surrender' | translate }}
             </button>
           </div>
-          <app-voice-recorder (transcript)="onAttempt($event)" />
+          <app-voice-recorder
+            [disabled]="processing()"
+            (transcript)="onAttempt($event)"
+          />
         } @else if (s.quizReady) {
           <app-quiz-runner (completed)="onQuizComplete($event)" />
         }
@@ -83,6 +86,7 @@ export class GamePageComponent implements OnInit {
   protected readonly maxAttempts = MAX_NAME_ATTEMPTS;
   protected readonly state = signal<GameState | null>(null);
   protected readonly lastFeedback = signal<{ ok: boolean } | null>(null);
+  protected readonly processing = signal(false);
   protected readonly finalScore = signal<number | null>(null);
 
   async ngOnInit(): Promise<void> {
@@ -98,6 +102,8 @@ export class GamePageComponent implements OnInit {
   }
 
   async onAttempt(transcript: string): Promise<void> {
+    if (this.processing()) return;
+    this.processing.set(true);
     try {
       const r = await this.api.attempt(transcript);
       this.state.set(r.state);
@@ -105,6 +111,8 @@ export class GamePageComponent implements OnInit {
       setTimeout(() => this.lastFeedback.set(null), 2000);
     } catch (err) {
       console.error(err);
+    } finally {
+      this.processing.set(false);
     }
   }
 

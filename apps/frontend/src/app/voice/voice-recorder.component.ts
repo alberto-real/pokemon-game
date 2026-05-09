@@ -1,4 +1,4 @@
-import { Component, inject, output, signal } from '@angular/core';
+import { Component, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule } from '@ngx-translate/core';
 import { SpeechRecognizerService } from './speech-recognizer.service';
@@ -14,7 +14,7 @@ import { TtsPlayerService } from './tts-player.service';
         <button
           class="btn btn-primary btn-lg gap-2 w-full"
           [class.btn-error]="recognizer.listening()"
-          [disabled]="busy()"
+          [disabled]="busy() || disabled()"
           (click)="toggle()"
         >
           @if (recognizer.listening()) {
@@ -30,7 +30,7 @@ import { TtsPlayerService } from './tts-player.service';
           type="text"
           class="input input-bordered join-item flex-1"
           [placeholder]="'game.type_placeholder' | translate"
-          [disabled]="recognizer.listening()"
+          [disabled]="recognizer.listening() || disabled()"
           [(ngModel)]="text"
           name="text"
           autocomplete="off"
@@ -38,7 +38,7 @@ import { TtsPlayerService } from './tts-player.service';
         <button
           type="submit"
           class="btn btn-primary join-item"
-          [disabled]="!text().trim() || recognizer.listening()"
+          [disabled]="!text().trim() || recognizer.listening() || disabled()"
         >
           {{ 'game.send' | translate }}
         </button>
@@ -55,6 +55,7 @@ import { TtsPlayerService } from './tts-player.service';
 export class VoiceRecorderComponent {
   protected readonly recognizer = inject(SpeechRecognizerService);
   private readonly tts = inject(TtsPlayerService);
+  readonly disabled = input(false);
   readonly transcript = output<string>();
 
   protected readonly busy = signal(false);
@@ -71,7 +72,9 @@ export class VoiceRecorderComponent {
     this.errorKey.set(null);
     try {
       const text = await this.recognizer.start('es-ES');
-      if (text.trim()) this.transcript.emit(text);
+      if (text.trim()) {
+        this.text.set(text);
+      }
     } catch (err) {
       console.warn('Speech recognition failed', err);
       this.errorKey.set('game.voice_not_detected');

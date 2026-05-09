@@ -33,13 +33,20 @@ import { ConfettiService } from './confetti.service';
         <div class="text-xl font-semibold">{{ q.text }}</div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
           @for (opt of q.options; track $index) {
-            <div class="alert gap-2">
+            <button
+              class="btn btn-outline justify-start gap-3 h-auto py-3 text-left normal-case"
+              [disabled]="processing() || lastResult() !== null"
+              (click)="onAnswer(letter($index))"
+            >
               <span class="kbd kbd-sm">{{ letter($index) }}</span>
-              <span>{{ opt }}</span>
-            </div>
+              <span class="flex-1">{{ opt }}</span>
+            </button>
           }
         </div>
-        <app-voice-recorder (transcript)="onAnswer($event)" />
+        <app-voice-recorder
+          [disabled]="processing() || lastResult() !== null"
+          (transcript)="onAnswer($event)"
+        />
         @if (lastResult(); as r) {
           <div
             class="alert"
@@ -79,6 +86,7 @@ export class QuizRunnerComponent implements OnInit {
   protected readonly questions = signal<QuestionView[]>([]);
   protected readonly index = signal(0);
   protected readonly lastResult = signal<QuizAnswerResult | null>(null);
+  protected readonly processing = signal(false);
   protected readonly finalScore = signal<number | null>(null);
 
   protected readonly question = signal<QuestionView | null>(null);
@@ -122,7 +130,8 @@ export class QuizRunnerComponent implements OnInit {
 
   async onAnswer(transcript: string): Promise<void> {
     const q = this.question();
-    if (!q) return;
+    if (!q || this.processing()) return;
+    this.processing.set(true);
     try {
       const r = await this.api.answer(q.id, transcript);
       this.lastResult.set(r);
@@ -143,9 +152,13 @@ export class QuizRunnerComponent implements OnInit {
         if (r.quizScore === (this.total() ?? 0) && (this.total() ?? 0) > 0) {
           this.confetti.celebrate();
         }
-        setTimeout(() => this.completed.emit(r.totalScore ?? 0), delay);
+        setTimeout(() => {
+          this.processing.set(false);
+          this.completed.emit(r.totalScore ?? 0);
+        }, delay);
       } else {
         setTimeout(() => {
+          this.processing.set(false);
           this.lastResult.set(null);
           this.index.update((n) => n + 1);
           this.showCurrent();
@@ -153,6 +166,7 @@ export class QuizRunnerComponent implements OnInit {
       }
     } catch (err) {
       console.error(err);
+      this.processing.set(false);
     }
   }
 
