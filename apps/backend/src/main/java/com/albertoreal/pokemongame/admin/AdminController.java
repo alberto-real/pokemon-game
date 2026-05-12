@@ -1,5 +1,6 @@
 package com.albertoreal.pokemongame.admin;
 
+import com.albertoreal.pokemongame.game.UserDailyAttemptRepository;
 import com.albertoreal.pokemongame.quiz.DailyQuizQuestionRepository;
 import com.albertoreal.pokemongame.quiz.DailyQuizRepository;
 import com.albertoreal.pokemongame.quiz.QuizOrchestrator;
@@ -21,13 +22,16 @@ public class AdminController {
     private final QuizOrchestrator orchestrator;
     private final DailyQuizRepository quizRepo;
     private final DailyQuizQuestionRepository questionRepo;
+    private final UserDailyAttemptRepository attemptRepo;
 
     public AdminController(QuizOrchestrator orchestrator,
                            DailyQuizRepository quizRepo,
-                           DailyQuizQuestionRepository questionRepo) {
+                           DailyQuizQuestionRepository questionRepo,
+                           UserDailyAttemptRepository attemptRepo) {
         this.orchestrator = orchestrator;
         this.quizRepo = quizRepo;
         this.questionRepo = questionRepo;
+        this.attemptRepo = attemptRepo;
     }
 
     @PostMapping("/generate")
@@ -44,6 +48,9 @@ public class AdminController {
     @Transactional
     public Map<String, Object> regenerate(
         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        // Delete user results
+        attemptRepo.deleteByDate(date);
+
         // Delete questions and quiz (daily_pokemon row persists - selector will avoid repeating)
         for (var q : questionRepo.findByQuizDateOrderByPositionAsc(date)) {
             questionRepo.deleteById(q.getId());

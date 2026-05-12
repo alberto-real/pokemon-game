@@ -98,4 +98,47 @@ class QuizServiceTest {
         assertThat(last.quizScore()).isEqualTo(1);
         assertThat(last.totalScore()).isEqualTo(4); // 3 name + 1 quiz
     }
+
+    @Test
+    void filtersOutAlreadyAnsweredQuestions() {
+        var date = LocalDate.now();
+        pokemonRepo.save(new DailyPokemon(date, 25, "pikachu", "Pikachu", "url", OffsetDateTime.now()));
+        quizRepo.save(new DailyQuiz(date, QuizStatus.READY, OffsetDateTime.now()));
+        for (int i = 1; i <= 3; i++) {
+            questionRepo.save(new DailyQuizQuestion(date, i, "q" + i, List.of("A","B","C","D"), 0));
+        }
+
+        var questions = questionRepo.findByQuizDateOrderByPositionAsc(date);
+        
+        // Answer first question
+        quizService.answerByIndex(questions.get(0).getId(), 0);
+
+        // Fetch quiz again
+        var view = quizService.todayQuiz();
+        assertThat(view.questions()).hasSize(2);
+        assertThat(view.questions().get(0).position()).isEqualTo(2);
+        assertThat(view.questions().get(1).position()).isEqualTo(3);
+    }
+
+    @Test
+    void preventsDuplicateAnswersForSameQuestion() {
+        var date = LocalDate.now();
+        pokemonRepo.save(new DailyPokemon(date, 25, "pikachu", "Pikachu", "url", OffsetDateTime.now()));
+        quizRepo.save(new DailyQuiz(date, QuizStatus.READY, OffsetDateTime.now()));
+        questionRepo.save(new DailyQuizQuestion(date, 1, "q1", List.of("A","B","C","D"), 0));
+
+        var question = questionRepo.findByQuizDateOrderByPositionAsc(date).get(0);
+        
+        // First answer
+        var r1 = quizService.answerByIndex(question.getId(), 0);
+        assertThat(r1.correct()).isTrue();
+        assertThat(r1.quizScore()).isEqualTo(1);
+
+        // Second answer for same question
+        var r2 = quizService.answerByIndex(question.getId(), 0);
+        assertThat(r2.quizScore()).isEqualTo(1); // Should still be 1, not 2
+        
+        var attempt = attemptRepo.findByUserIdAndDate("dev", date).get();
+        assertThat(attempt.getQuizAnswers()).hasSize(1);
+    }
 }

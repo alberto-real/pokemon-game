@@ -35,7 +35,20 @@ public class QuizService {
     public QuizView todayQuiz() {
         var date = LocalDate.now();
         var quiz = quizRepo.findById(date).orElseThrow();
+        var attempt = attemptRepo.findByUserIdAndDate(currentUser.userId(), date)
+            .orElseGet(() -> new UserDailyAttempt(currentUser.userId(), date));
+
+        List<String> answeredPositions = attempt.getQuizAnswers() == null ? List.of() : attempt.getQuizAnswers();
+        List<Integer> answeredPosList = answeredPositions.stream()
+            .map(a -> {
+                try {
+                    return Integer.parseInt(a.split(",")[0].split("=")[1]);
+                } catch (Exception e) { return -1; }
+            })
+            .toList();
+
         var questions = questionRepo.findByQuizDateOrderByPositionAsc(date).stream()
+            .filter(q -> !answeredPosList.contains(q.getPosition()))
             .map(q -> new QuizView.QuestionView(
                 q.getId(), q.getPosition(), q.getQuestionText(), q.getOptions()))
             .toList();
@@ -62,6 +75,18 @@ public class QuizService {
 
         List<String> answers = new ArrayList<>(
             attempt.getQuizAnswers() == null ? List.of() : attempt.getQuizAnswers());
+
+        // Check if already answered
+        boolean alreadyAnswered = answers.stream().anyMatch(a -> a.startsWith("position=" + question.getPosition() + ","));
+        if (alreadyAnswered) {
+            // Return current state without adding new answer
+            int score = 0;
+            for (String a : answers) if (a.contains("correct=true")) score++;
+            return new QuizAnswerResult(false, -1, question.getCorrectOptionIndex(),
+                answers.size() >= questionRepo.findByQuizDateOrderByPositionAsc(date).size(),
+                score, attempt.getTotalScore());
+        }
+
         boolean correct = selected == question.getCorrectOptionIndex();
         answers.add("position=" + question.getPosition()
             + ",selected=" + selected + ",correct=" + correct);

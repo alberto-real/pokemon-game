@@ -7,4 +7,5 @@ import java.util.Optional;
 public interface UserDailyAttemptRepository
         extends JpaRepository<UserDailyAttempt, UserDailyAttempt.Key> {
     Optional<UserDailyAttempt> findByUserIdAndDate(String userId, LocalDate date);
+    void deleteByDate(LocalDate date);
 }
