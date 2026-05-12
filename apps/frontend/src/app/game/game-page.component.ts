@@ -8,6 +8,7 @@ import { PokemonCanvasComponent } from './pokemon-canvas.component';
 import { VoiceRecorderComponent } from '../voice/voice-recorder.component';
 import { QuizRunnerComponent } from './quiz-runner.component';
 import { AttemptsHistoryComponent } from './attempts-history.component';
+import { NameHintsComponent } from './name-hints.component';
 
 const MAX_NAME_ATTEMPTS = 5;
 
@@ -21,6 +22,7 @@ const MAX_NAME_ATTEMPTS = 5;
     VoiceRecorderComponent,
     QuizRunnerComponent,
     AttemptsHistoryComponent,
+    NameHintsComponent,
   ],
   template: `
     @if (state(); as s) {
@@ -53,6 +55,13 @@ const MAX_NAME_ATTEMPTS = 5;
               {{ 'game.surrender' | translate }}
             </button>
           </div>
+
+          <app-name-hints
+            [length]="s.nameLength"
+            [hints]="s.hints"
+            [showLength]="s.nameAttempts.length >= 2"
+          />
+
           <app-voice-recorder
             [disabled]="processing()"
             (transcript)="onAttempt($event)"

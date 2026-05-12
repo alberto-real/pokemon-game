@@ -4,7 +4,7 @@ import { Component, computed, input } from '@angular/core';
   selector: 'app-pokemon-canvas',
   standalone: true,
   template: `
-    <div class="flex items-center justify-center bg-base-200 rounded-box p-6">
+    <div class="flex items-center justify-center bg-slate-100 rounded-box p-6 shadow-inner">
       <img
         [src]="imageUrl()"
         alt="Pokemon"
@@ -25,13 +25,13 @@ export class PokemonCanvasComponent {
       case 0:
         return 'brightness(0)';
       case 1:
-        return 'blur(16px) saturate(1.1)';
+        return 'blur(12px)';
       case 2:
-        return 'blur(10px)';
+        return 'blur(8px)';
       case 3:
-        return 'blur(5px)';
+        return 'blur(4px)';
       case 4:
-        return 'blur(2px)';
+        return 'none';
       default:
         return 'none';
     }

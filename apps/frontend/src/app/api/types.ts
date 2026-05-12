@@ -15,6 +15,8 @@ export interface GameState {
   quizReady: boolean;
   quizStatus: string;
   nameAttempts: NameAttemptView[];
+  nameLength: number;
+  hints: string | null;
 }
 
 export interface AttemptResult {

@@ -8,7 +8,7 @@
   },
   "game": {
     "attempts_remaining": "{{n}} intentos restantes",
-    "record": "Grabar",
+    "record": "Dictar",
     "stop": "Detener",
     "surrender": "Me rindo",
     "correct": "¡Correcto!",

@@ -8,7 +8,7 @@
   },
   "game": {
     "attempts_remaining": "{{n}} attempts left",
-    "record": "Record",
+    "record": "Dictate",
     "stop": "Stop",
     "surrender": "Give up",
     "correct": "Correct!",
