@@ -102,4 +102,34 @@ class GameServiceTest {
         assertThat(r.correct()).isTrue();
         assertThat(r.state().nameScore()).isEqualTo(5);
     }
+
+    @Test
+    void providesHintsAndLength() {
+        seedPokemon("bulbasaur"); // 9 letters
+        var s1 = gameService.today();
+        assertThat(s1.nameLength()).isEqualTo(9);
+        assertThat(s1.hints()).isNull();
+
+        // 1st failed attempt
+        gameService.attempt("ivysaur");
+        var s2 = gameService.today();
+        assertThat(s2.hints()).isNull();
+
+        // 2nd failed attempt
+        gameService.attempt("venusaur");
+        var s3 = gameService.today();
+        assertThat(s3.hints()).isNull();
+
+        // 3rd failed attempt -> 4th attempt starts
+        gameService.attempt("charmander");
+        var s4 = gameService.today();
+        assertThat(s4.hints()).isNotNull();
+        assertThat(s4.hints()).hasSize(9);
+        long hintCount = s4.hints().chars().filter(c -> c != '_').count();
+        assertThat(hintCount).isBetween(1L, 3L);
+
+        // Check that hints leave at least 2 empty spaces (since we have no greens/oranges yet)
+        long emptyCount = s4.hints().chars().filter(c -> c == '_').count();
+        assertThat(emptyCount).isGreaterThanOrEqualTo(2L);
+    }
 }

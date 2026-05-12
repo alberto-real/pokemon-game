@@ -13,5 +13,7 @@ public record GameState(
     Integer nameScore,      // null while in progress
     boolean quizReady,
     String quizStatus,
-    List<NameAttemptView> nameAttempts
+    List<NameAttemptView> nameAttempts,
+    int nameLength,
+    String hints
 ) {}

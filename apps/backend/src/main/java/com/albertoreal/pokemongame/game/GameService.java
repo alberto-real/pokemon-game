@@ -9,7 +9,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class GameService {
@@ -108,6 +112,8 @@ public class GameService {
             .map(g -> new NameAttemptView(g, WordleEvaluator.evaluate(g, answer)))
             .toList();
 
+        String hints = calculateHints(answer, attemptViews, attempt.getNameAttemptsUsed());
+
         return new GameState(
             attemptsLeft,
             blurLevel,
@@ -119,7 +125,72 @@ public class GameService {
             attempt.getNameScore(),
             quiz.getStatus() == QuizStatus.READY,
             quiz.getStatus().name(),
-            attemptViews
+            attemptViews,
+            answer.length(),
+            hints
         );
+    }
+
+    private String calculateHints(String answer, List<NameAttemptView> attempts, int attemptsUsed) {
+        if (attemptsUsed < 3) return null;
+
+        int n = answer.length();
+        char[] hints = new char[n];
+        for (int i = 0; i < n; i++) hints[i] = '_';
+
+        Set<Integer> knownCorrectPositions = new HashSet<>();
+        Set<Character> knownPresentLetters = new HashSet<>();
+
+        for (var a : attempts) {
+            for (int i = 0; i < a.feedback().length(); i++) {
+                if (a.feedback().charAt(i) == 'H' && i < n) {
+                    knownCorrectPositions.add(i);
+                } else if (a.feedback().charAt(i) == 'P') {
+                    knownPresentLetters.add(a.guess().charAt(i));
+                }
+            }
+        }
+
+        // Set of characters that the user already knows are in the pokemon name
+        Set<Character> knownLetters = new HashSet<>(knownPresentLetters);
+        for (int pos : knownCorrectPositions) {
+            knownLetters.add(answer.charAt(pos));
+        }
+
+        List<Integer> availablePositions = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            if (!knownCorrectPositions.contains(i)) {
+                availablePositions.add(i);
+            }
+        }
+
+        Collections.shuffle(availablePositions);
+
+        int hintsAdded = 0;
+        // First pass: try to add hints that are NOT among known letters
+        for (int pos : availablePositions) {
+            if (hintsAdded >= 3) break;
+            if (knownLetters.size() + hintsAdded >= n - 2) break;
+
+            char c = answer.charAt(pos);
+            if (knownLetters.contains(c)) continue;
+
+            hints[pos] = c;
+            hintsAdded++;
+        }
+
+        // Second pass: if we still have room, add hints from known letters (but still in unknown positions)
+        if (hintsAdded < 3 && knownLetters.size() + hintsAdded < n - 2) {
+            for (int pos : availablePositions) {
+                if (hintsAdded >= 3) break;
+                if (knownLetters.size() + hintsAdded >= n - 2) break;
+                if (hints[pos] != '_') continue;
+
+                hints[pos] = answer.charAt(pos);
+                hintsAdded++;
+            }
+        }
+
+        return new String(hints);
     }
 }
