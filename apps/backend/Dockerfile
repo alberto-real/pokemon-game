@@ -3,6 +3,26 @@
 FROM eclipse-temurin:25-jdk-noble AS build
 WORKDIR /app
 
+# Optional: trust extra CAs placed in .certs/*.pem (used to bypass corporate
+# TLS-inspecting proxies during `mvn` dependency download). Empty in CI/prod.
+COPY .certs /tmp/extra-certs
+RUN set -e; \
+    cd /tmp/extra-certs; \
+    for f in *.pem; do \
+      [ -f "$f" ] || continue; \
+      csplit -z -f "cert-" -b "%02d.pem" "$f" '/-----BEGIN CERTIFICATE-----/' '{*}' >/dev/null; \
+      i=0; for c in cert-*.pem; do \
+        [ -s "$c" ] || continue; \
+        keytool -importcert -noprompt -trustcacerts \
+          -alias "extra-ca-$(basename "$f" .pem)-$i" \
+          -file "$c" \
+          -keystore "$JAVA_HOME/lib/security/cacerts" \
+          -storepass changeit; \
+        i=$((i+1)); \
+      done; \
+      rm -f cert-*.pem; \
+    done
+
 COPY mvnw pom.xml ./
 COPY .mvn .mvn
 
