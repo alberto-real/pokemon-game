@@ -31,3 +31,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Corporate CA bundle (machine-local only)
+*.pem
