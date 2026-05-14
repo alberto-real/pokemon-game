@@ -26,7 +26,7 @@ interface AttemptRow {
           <span class="text-sm font-normal opacity-70">{{ used() }}/{{ max() }}</span>
         </h3>
 
-        @if (rows().length === 0) {
+        @if (rows().length === 0 && !showNextRow()) {
           <p class="text-sm opacity-60">{{ 'game.no_attempts_yet' | translate }}</p>
         } @else {
           <ul class="space-y-2">
@@ -47,6 +47,22 @@ interface AttemptRow {
                 </div>
               </li>
             }
+            @if (showNextRow()) {
+              <li class="flex items-center gap-2">
+                <span class="text-xs opacity-60 w-4 text-right">{{ used() + 1 }}.</span>
+                <div class="flex gap-1 flex-wrap">
+                  @for (char of nextRowChars(); track $index) {
+                    <span
+                      class="inline-flex items-center justify-center w-7 h-7 text-sm font-bold uppercase border-b-2 border-base-content/40"
+                    >
+                      @if (char !== '_') {
+                        <span class="opacity-40">{{ char }}</span>
+                      }
+                    </span>
+                  }
+                </div>
+              </li>
+            }
           </ul>
         }
       </div>
@@ -56,6 +72,9 @@ interface AttemptRow {
 export class AttemptsHistoryComponent {
   readonly attempts = input.required<NameAttemptView[]>();
   readonly max = input.required<number>();
+  readonly nameLength = input<number>(0);
+  readonly hints = input<string | null>(null);
+  readonly showNextRow = input<boolean>(false);
 
   protected readonly used = computed(() => this.attempts().length);
 
@@ -65,6 +84,12 @@ export class AttemptsHistoryComponent {
       tiles: this.toTiles(a),
     })),
   );
+
+  protected readonly nextRowChars = computed<string[]>(() => {
+    const h = this.hints();
+    if (h) return [...h];
+    return Array(this.nameLength()).fill('_');
+  });
 
   private toTiles(a: NameAttemptView): LetterTile[] {
     const letters = [...a.guess];

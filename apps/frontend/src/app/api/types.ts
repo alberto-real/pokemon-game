@@ -3,25 +3,29 @@ export interface NameAttemptView {
   feedback: string;
 }
 
+/** Immutable per-day info served on bootstrap. */
 export interface GameState {
-  attemptsLeft: number;
-  blurLevel: number;
-  nameSolved: boolean;
-  nameSurrendered: boolean;
-  revealedName: string | null;
-  revealedNameEs: string | null;
   imageUrl: string;
-  nameScore: number | null;
+  nameLength: number;
   quizReady: boolean;
   quizStatus: string;
-  nameAttempts: NameAttemptView[];
-  nameLength: number;
-  hints: string | null;
+  maxAttempts: number;
 }
 
+/** Result of a single name guess. */
 export interface AttemptResult {
   correct: boolean;
-  state: GameState;
+  guess: string;
+  feedback: string;
+  hints: string | null;
+  revealedName: string | null;
+  revealedNameEs: string | null;
+  nameScore: number | null;
+}
+
+export interface SurrenderResult {
+  revealedName: string;
+  revealedNameEs: string;
 }
 
 export interface QuestionView {
@@ -40,7 +44,4 @@ export interface QuizAnswerResult {
   correct: boolean;
   selectedIndex: number;
   correctIndex: number;
-  quizComplete: boolean;
-  quizScore: number | null;
-  totalScore: number | null;
 }

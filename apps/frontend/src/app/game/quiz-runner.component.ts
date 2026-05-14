@@ -1,4 +1,11 @@
-import { Component, inject, signal, output, OnInit } from '@angular/core';
+import {
+  Component,
+  inject,
+  signal,
+  output,
+  input,
+  OnInit,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
@@ -81,6 +88,7 @@ export class QuizRunnerComponent implements OnInit {
   private readonly confetti = inject(ConfettiService);
   private readonly i18n = inject(TranslateService);
 
+  readonly nameScore = input(0);
   readonly completed = output<number>();
 
   protected readonly questions = signal<QuestionView[]>([]);
@@ -88,6 +96,7 @@ export class QuizRunnerComponent implements OnInit {
   protected readonly lastResult = signal<QuizAnswerResult | null>(null);
   protected readonly processing = signal(false);
   protected readonly finalScore = signal<number | null>(null);
+  protected readonly quizScore = signal(0);
 
   protected readonly question = signal<QuestionView | null>(null);
   protected readonly total = signal(0);
@@ -136,6 +145,7 @@ export class QuizRunnerComponent implements OnInit {
       const r = await this.api.answer(q.id, transcript);
       this.lastResult.set(r);
       if (r.correct) {
+        this.quizScore.update((s) => s + 1);
         this.confetti.burst();
         this.speakFeedback('game.correct');
       } else {
@@ -146,15 +156,17 @@ export class QuizRunnerComponent implements OnInit {
       // Show the feedback longer when wrong so the user can read the
       // correct-answer hint.
       const delay = r.correct ? 1500 : 3500;
-      if (r.quizComplete) {
-        this.finalScore.set(r.totalScore ?? 0);
+      const isLast = this.index() + 1 >= this.questions().length;
+      if (isLast) {
+        const total = this.nameScore() + this.quizScore();
+        this.finalScore.set(total);
         this.question.set(null);
-        if (r.quizScore === (this.total() ?? 0) && (this.total() ?? 0) > 0) {
+        if (this.quizScore() === this.total() && this.total() > 0) {
           this.confetti.celebrate();
         }
         setTimeout(() => {
           this.processing.set(false);
-          this.completed.emit(r.totalScore ?? 0);
+          this.completed.emit(total);
         }, delay);
       } else {
         setTimeout(() => {

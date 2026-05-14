@@ -5,8 +5,10 @@ import { firstValueFrom } from 'rxjs';
 import {
   AttemptResult,
   GameState,
+  NameAttemptView,
   QuizAnswerResult,
   QuizView,
+  SurrenderResult,
 } from './types';
 
 @Injectable({ providedIn: 'root' })
@@ -17,15 +19,21 @@ export class GameApi {
     return firstValueFrom(this.http.get<GameState>('/api/game/today'));
   }
 
-  attempt(transcript: string): Promise<AttemptResult> {
+  attempt(
+    transcript: string,
+    previousAttempts: NameAttemptView[],
+  ): Promise<AttemptResult> {
     return firstValueFrom(
-      this.http.post<AttemptResult>('/api/game/today/attempt', { transcript }),
+      this.http.post<AttemptResult>('/api/game/today/attempt', {
+        transcript,
+        previousAttempts,
+      }),
     );
   }
 
-  surrender(): Promise<GameState> {
+  surrender(): Promise<SurrenderResult> {
     return firstValueFrom(
-      this.http.post<GameState>('/api/game/today/surrender', {}),
+      this.http.post<SurrenderResult>('/api/game/today/surrender', {}),
     );
   }
 
