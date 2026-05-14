@@ -15,6 +15,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -36,12 +38,10 @@ class GameServiceTest {
     @Autowired GameService gameService;
     @Autowired DailyPokemonRepository pokemonRepo;
     @Autowired DailyQuizRepository quizRepo;
-    @Autowired UserDailyAttemptRepository attemptRepo;
     @Autowired PokemonNameCatalog catalog;
 
     @BeforeEach
     void cleanDb() {
-        attemptRepo.deleteAll();
         quizRepo.deleteAll();
         pokemonRepo.deleteAll();
     }
@@ -53,83 +53,99 @@ class GameServiceTest {
         catalog.register(name);
     }
 
+    /**
+     * Drives the service like a frontend would: keeps the running attempt list
+     * and feeds it back on each call.
+     */
+    private AttemptResult guess(String transcript, List<NameAttemptView> running) {
+        var r = gameService.attempt(transcript, running);
+        if (!r.correct() && r.guess() != null && !r.guess().isEmpty()) {
+            running.add(new NameAttemptView(r.guess(), r.feedback()));
+        }
+        return r;
+    }
+
     @Test
     void scoresFiveWhenSolvedOnFirstAttempt() {
         seedPokemon("pikachu");
-        var r = gameService.attempt("pikachu");
+        var r = gameService.attempt("pikachu", List.of());
         assertThat(r.correct()).isTrue();
-        assertThat(r.state().nameSolved()).isTrue();
-        assertThat(r.state().nameScore()).isEqualTo(5);
-        assertThat(r.state().blurLevel()).isEqualTo(1);
+        assertThat(r.nameScore()).isEqualTo(5);
+        assertThat(r.revealedName()).isEqualTo("pikachu");
     }
 
     @Test
     void scoresOneWhenSolvedOnFifthAttempt() {
         seedPokemon("charizard");
-        for (int i = 1; i <= 4; i++) gameService.attempt("wrong" + i);
-        var r = gameService.attempt("Charizard");
+        var running = new ArrayList<NameAttemptView>();
+        for (int i = 1; i <= 4; i++) guess("wrong" + i, running);
+        var r = gameService.attempt("Charizard", running);
         assertThat(r.correct()).isTrue();
-        assertThat(r.state().nameScore()).isEqualTo(1);
+        assertThat(r.nameScore()).isEqualTo(1);
     }
 
     @Test
     void scoresZeroWhenAllAttemptsExhausted() {
         seedPokemon("mewtwo");
+        var running = new ArrayList<NameAttemptView>();
+        AttemptResult last = null;
         for (int i = 1; i <= 5; i++) {
-            var r = gameService.attempt("notthepokemon");
-            assertThat(r.correct()).isFalse();
+            last = guess("notthepokemon", running);
         }
-        var state = gameService.today();
-        assertThat(state.attemptsLeft()).isZero();
-        assertThat(state.nameScore()).isZero();
-        assertThat(state.revealedName()).isEqualTo("mewtwo");
+        assertThat(last).isNotNull();
+        assertThat(last.correct()).isFalse();
+        assertThat(last.nameScore()).isZero();
+        assertThat(last.revealedName()).isEqualTo("mewtwo");
     }
 
     @Test
-    void surrenderScoresZeroAndReveals() {
+    void surrenderRevealsName() {
         seedPokemon("mewtwo");
         var s = gameService.surrender();
-        assertThat(s.nameSurrendered()).isTrue();
-        assertThat(s.nameScore()).isZero();
         assertThat(s.revealedName()).isEqualTo("mewtwo");
     }
 
     @Test
-    void furtherAttemptsAfterSolvedAreNoOp() {
-        seedPokemon("pikachu");
-        gameService.attempt("pikachu");
-        var r = gameService.attempt("anything");
-        assertThat(r.correct()).isTrue();
-        assertThat(r.state().nameScore()).isEqualTo(5);
+    void furtherAttemptsAfterMaxAreIdempotent() {
+        seedPokemon("mewtwo");
+        var running = new ArrayList<NameAttemptView>();
+        for (int i = 1; i <= 5; i++) guess("wrong" + i, running);
+        // 5 attempts already in running list — defensive call should still
+        // report game over without crashing.
+        var r = gameService.attempt("anything", running);
+        assertThat(r.revealedName()).isEqualTo("mewtwo");
     }
 
     @Test
-    void providesHintsAndLength() {
+    void todayReturnsImmutableDayInfo() {
+        seedPokemon("bulbasaur");
+        var s = gameService.today();
+        assertThat(s.imageUrl()).isEqualTo("url");
+        assertThat(s.nameLength()).isEqualTo(9);
+        assertThat(s.quizReady()).isTrue();
+        assertThat(s.maxAttempts()).isEqualTo(GameService.MAX_ATTEMPTS);
+    }
+
+    @Test
+    void hintsAppearFromThirdAttempt() {
         seedPokemon("bulbasaur"); // 9 letters
-        var s1 = gameService.today();
-        assertThat(s1.nameLength()).isEqualTo(9);
-        assertThat(s1.hints()).isNull();
+        var running = new ArrayList<NameAttemptView>();
 
-        // 1st failed attempt
-        gameService.attempt("ivysaur");
-        var s2 = gameService.today();
-        assertThat(s2.hints()).isNull();
+        var r1 = guess("ivysaur", running);
+        assertThat(r1.hints()).isNull();
 
-        // 2nd failed attempt
-        gameService.attempt("venusaur");
-        var s3 = gameService.today();
-        assertThat(s3.hints()).isNull();
+        var r2 = guess("venusaur", running);
+        assertThat(r2.hints()).isNull();
 
-        // 3rd failed attempt -> 4th attempt starts
-        gameService.attempt("charmander");
-        var s4 = gameService.today();
-        assertThat(s4.hints()).isNotNull();
-        assertThat(s4.hints()).hasSize(9);
-        long hintCount = s4.hints().chars().filter(c -> c != '_').count();
+        // 3rd attempt -> hints
+        var r3 = guess("charmander", running);
+        assertThat(r3.hints()).isNotNull();
+        assertThat(r3.hints()).hasSize(9);
+        long hintCount = r3.hints().chars().filter(c -> c != '_').count();
         assertThat(hintCount).isBetween(1L, 3L);
 
-        // Check that hints leave at least 2 empty spaces (since we have no greens/oranges yet)
-        long emptyCount = s4.hints().chars().filter(c -> c == '_').count();
+        // Hints leave at least 2 empty spaces
+        long emptyCount = r3.hints().chars().filter(c -> c == '_').count();
         assertThat(emptyCount).isGreaterThanOrEqualTo(2L);
     }
 }

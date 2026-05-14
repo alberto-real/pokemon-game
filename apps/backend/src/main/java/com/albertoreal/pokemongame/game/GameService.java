@@ -1,12 +1,10 @@
 package com.albertoreal.pokemongame.game;
 
-import com.albertoreal.pokemongame.common.CurrentUser;
 import com.albertoreal.pokemongame.common.TextNormalizer;
 import com.albertoreal.pokemongame.quiz.DailyQuiz;
 import com.albertoreal.pokemongame.quiz.DailyQuizRepository;
 import com.albertoreal.pokemongame.quiz.QuizStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -15,119 +13,118 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Stateless game logic. The server knows the daily Pokemon and validates
+ * each guess; per-session state (attempts, score, solved status) lives in
+ * the frontend and is replayed back via {@code previousAttempts} when needed
+ * for hint computation.
+ */
 @Service
 public class GameService {
 
-    static final int MAX_ATTEMPTS = 5;
+    public static final int MAX_ATTEMPTS = 5;
 
     private final DailyPokemonRepository pokemonRepo;
     private final DailyQuizRepository quizRepo;
-    private final UserDailyAttemptRepository attemptRepo;
     private final PokemonNameCatalog catalog;
-    private final CurrentUser currentUser;
 
     public GameService(DailyPokemonRepository pokemonRepo,
                        DailyQuizRepository quizRepo,
-                       UserDailyAttemptRepository attemptRepo,
-                       PokemonNameCatalog catalog,
-                       CurrentUser currentUser) {
+                       PokemonNameCatalog catalog) {
         this.pokemonRepo = pokemonRepo;
         this.quizRepo = quizRepo;
-        this.attemptRepo = attemptRepo;
         this.catalog = catalog;
-        this.currentUser = currentUser;
     }
 
-    @Transactional(readOnly = true)
     public GameState today() {
-        return stateFor(LocalDate.now());
-    }
-
-    @Transactional
-    public AttemptResult attempt(String transcript) {
         var date = LocalDate.now();
         var pokemon = pokemonRepo.findById(date).orElseThrow();
-        var attempt = attemptRepo.findByUserIdAndDate(currentUser.userId(), date)
-            .orElseGet(() -> new UserDailyAttempt(currentUser.userId(), date));
+        DailyQuiz quiz = quizRepo.findById(date).orElseThrow();
+        String answer = TextNormalizer.normalize(pokemon.getPokemonName());
+        return new GameState(
+            pokemon.getImageUrl(),
+            answer.length(),
+            quiz.getStatus() == QuizStatus.READY,
+            quiz.getStatus().name(),
+            MAX_ATTEMPTS
+        );
+    }
 
-        if (attempt.isNameSolved() || attempt.isNameSurrendered()) {
-            return new AttemptResult(attempt.isNameSolved(), stateFor(date));
+    public AttemptResult attempt(String transcript, List<NameAttemptView> previousAttempts) {
+        var date = LocalDate.now();
+        var pokemon = pokemonRepo.findById(date).orElseThrow();
+        var prior = previousAttempts == null ? List.<NameAttemptView>of() : previousAttempts;
+
+        if (prior.size() >= MAX_ATTEMPTS) {
+            // Defensive: the frontend should not have called us, but if it does
+            // (race), report game-over without re-evaluating.
+            return gameOverResult(false, prior, pokemon);
         }
-        if (attempt.getNameAttemptsUsed() >= MAX_ATTEMPTS) {
-            return new AttemptResult(false, stateFor(date));
-        }
 
-        attempt.setNameAttemptsUsed(attempt.getNameAttemptsUsed() + 1);
-
+        String answer = TextNormalizer.normalize(pokemon.getPokemonName());
         var matcher = new PokemonNameMatcher(catalog.all());
         var matched = matcher.match(transcript);
+
         boolean correct = matched
             .map(m -> m.equalsIgnoreCase(pokemon.getPokemonName()))
             .orElse(false);
 
+        String guess = matched.orElseGet(() -> TextNormalizer.normalize(transcript));
+        String feedback = guess.isEmpty() ? "" : WordleEvaluator.evaluate(guess, answer);
+        int attemptsUsedAfter = prior.size() + 1;
+
         if (correct) {
-            attempt.setNameSolved(true);
-            attempt.setNameScore(MAX_ATTEMPTS - (attempt.getNameAttemptsUsed() - 1));
-        } else {
-            String guess = matched.orElseGet(() -> TextNormalizer.normalize(transcript));
-            if (!guess.isEmpty()) {
-                attempt.getNameAttempts().add(guess);
-            }
-            if (attempt.getNameAttemptsUsed() >= MAX_ATTEMPTS) {
-                attempt.setNameSurrendered(true);
-                attempt.setNameScore(0);
-            }
+            int score = MAX_ATTEMPTS - (attemptsUsedAfter - 1);
+            return new AttemptResult(
+                true,
+                guess,
+                feedback,
+                null,
+                pokemon.getPokemonName(),
+                pokemon.getPokemonNameEs(),
+                score
+            );
         }
 
-        attemptRepo.save(attempt);
-        return new AttemptResult(correct, stateFor(date));
+        // Wrong guess. Build the new running list to compute hints (and to
+        // detect game-over if this was the 5th attempt).
+        List<NameAttemptView> running = new ArrayList<>(prior);
+        if (!guess.isEmpty()) {
+            running.add(new NameAttemptView(guess, feedback));
+        }
+        boolean gameOver = attemptsUsedAfter >= MAX_ATTEMPTS;
+
+        if (gameOver) {
+            return new AttemptResult(
+                false,
+                guess,
+                feedback,
+                null,
+                pokemon.getPokemonName(),
+                pokemon.getPokemonNameEs(),
+                0
+            );
+        }
+
+        String hints = calculateHints(answer, running, attemptsUsedAfter);
+        return new AttemptResult(false, guess, feedback, hints, null, null, null);
     }
 
-    @Transactional
-    public GameState surrender() {
-        var date = LocalDate.now();
-        var attempt = attemptRepo.findByUserIdAndDate(currentUser.userId(), date)
-            .orElseGet(() -> new UserDailyAttempt(currentUser.userId(), date));
-        if (attempt.isNameSolved() || attempt.isNameSurrendered()) return stateFor(date);
-        attempt.setNameSurrendered(true);
-        attempt.setNameScore(0);
-        attemptRepo.save(attempt);
-        return stateFor(date);
+    public SurrenderResult surrender() {
+        var pokemon = pokemonRepo.findById(LocalDate.now()).orElseThrow();
+        return new SurrenderResult(pokemon.getPokemonName(), pokemon.getPokemonNameEs());
     }
 
-    private GameState stateFor(LocalDate date) {
-        var pokemon = pokemonRepo.findById(date).orElseThrow();
-        var attempt = attemptRepo.findByUserIdAndDate(currentUser.userId(), date)
-            .orElseGet(() -> new UserDailyAttempt(currentUser.userId(), date));
-        DailyQuiz quiz = quizRepo.findById(date).orElseThrow();
-
-        int attemptsLeft = Math.max(0, MAX_ATTEMPTS - attempt.getNameAttemptsUsed());
-        int blurLevel = Math.min(attempt.getNameAttemptsUsed(), 4);
-        boolean revealed = attempt.isNameSolved()
-            || attempt.isNameSurrendered()
-            || attempt.getNameAttemptsUsed() >= MAX_ATTEMPTS;
-
-        String answer = TextNormalizer.normalize(pokemon.getPokemonName());
-        List<NameAttemptView> attemptViews = attempt.getNameAttempts().stream()
-            .map(g -> new NameAttemptView(g, WordleEvaluator.evaluate(g, answer)))
-            .toList();
-
-        String hints = calculateHints(answer, attemptViews, attempt.getNameAttemptsUsed());
-
-        return new GameState(
-            attemptsLeft,
-            blurLevel,
-            attempt.isNameSolved(),
-            attempt.isNameSurrendered(),
-            revealed ? pokemon.getPokemonName() : null,
-            revealed ? pokemon.getPokemonNameEs() : null,
-            pokemon.getImageUrl(),
-            attempt.getNameScore(),
-            quiz.getStatus() == QuizStatus.READY,
-            quiz.getStatus().name(),
-            attemptViews,
-            answer.length(),
-            hints
+    private AttemptResult gameOverResult(boolean correct, List<NameAttemptView> prior, DailyPokemon pokemon) {
+        var last = prior.isEmpty() ? new NameAttemptView("", "") : prior.get(prior.size() - 1);
+        return new AttemptResult(
+            correct,
+            last.guess(),
+            last.feedback(),
+            null,
+            pokemon.getPokemonName(),
+            pokemon.getPokemonNameEs(),
+            correct ? MAX_ATTEMPTS - (prior.size() - 1) : 0
         );
     }
 
@@ -151,7 +148,6 @@ public class GameService {
             }
         }
 
-        // Set of characters that the user already knows are in the pokemon name
         Set<Character> knownLetters = new HashSet<>(knownPresentLetters);
         for (int pos : knownCorrectPositions) {
             knownLetters.add(answer.charAt(pos));
@@ -167,7 +163,6 @@ public class GameService {
         Collections.shuffle(availablePositions);
 
         int hintsAdded = 0;
-        // First pass: try to add hints that are NOT among known letters
         for (int pos : availablePositions) {
             if (hintsAdded >= 3) break;
             if (knownLetters.size() + hintsAdded >= n - 2) break;
@@ -179,7 +174,6 @@ public class GameService {
             hintsAdded++;
         }
 
-        // Second pass: if we still have room, add hints from known letters (but still in unknown positions)
         if (hintsAdded < 3 && knownLetters.size() + hintsAdded < n - 2) {
             for (int pos : availablePositions) {
                 if (hintsAdded >= 3) break;

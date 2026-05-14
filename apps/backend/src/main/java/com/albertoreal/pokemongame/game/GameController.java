@@ -31,11 +31,11 @@ public class GameController {
 
     @PostMapping("/today/attempt")
     public AttemptResult attempt(@Valid @RequestBody AttemptRequest req) {
-        return gameService.attempt(req.transcript());
+        return gameService.attempt(req.transcript(), req.previousAttempts());
     }
 
     @PostMapping("/today/surrender")
-    public GameState surrender() {
+    public SurrenderResult surrender() {
         return gameService.surrender();
     }
 }

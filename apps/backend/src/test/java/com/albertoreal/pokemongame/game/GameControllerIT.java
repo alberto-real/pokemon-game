@@ -43,7 +43,6 @@ class GameControllerIT {
 
     @Autowired TestRestTemplate rest;
     @Autowired DailyPokemonRepository pokemonRepo;
-    @Autowired UserDailyAttemptRepository attemptRepo;
 
     @BeforeEach
     void stubPokeApi() {
@@ -53,32 +52,35 @@ class GameControllerIT {
             new PokemonSpeciesDto(25, List.of(
                 new PokemonSpeciesDto.Name("Pikachu", new PokemonSpeciesDto.Language("es"))),
                 null, null, null));
-        attemptRepo.deleteAll();
     }
 
     @Test
-    void todayBootstrapsTheDayAndReturnsState() {
+    void todayBootstrapsTheDayAndReturnsImmutableInfo() {
         var r = rest.getForEntity("/api/game/today", GameState.class);
         assertThat(r.getStatusCode().is2xxSuccessful()).isTrue();
-        assertThat(r.getBody().attemptsLeft()).isEqualTo(5);
-        assertThat(r.getBody().nameSolved()).isFalse();
+        assertThat(r.getBody().maxAttempts()).isEqualTo(GameService.MAX_ATTEMPTS);
+        assertThat(r.getBody().nameLength()).isPositive();
         assertThat(pokemonRepo.findById(LocalDate.now())).isPresent();
     }
 
     @Test
-    void attemptWithCorrectNameSolves() {
+    void attemptWithCorrectNameSolvesAndRevealsName() {
         rest.getForEntity("/api/game/today", GameState.class); // bootstrap
-        var r = rest.postForEntity("/api/game/today/attempt",
-            new AttemptRequest("pikachu"), AttemptResult.class);
+
+        var r = rest.postForEntity(
+            "/api/game/today/attempt",
+            new AttemptRequest("pikachu", List.of()),
+            AttemptResult.class);
+
         assertThat(r.getBody().correct()).isTrue();
-        assertThat(r.getBody().state().nameScore()).isEqualTo(5);
+        assertThat(r.getBody().nameScore()).isEqualTo(5);
+        assertThat(r.getBody().revealedName()).isEqualTo("pikachu");
     }
 
     @Test
-    void surrenderReveals() {
+    void surrenderRevealsName() {
         rest.getForEntity("/api/game/today", GameState.class);
-        var r = rest.postForEntity("/api/game/today/surrender", null, GameState.class);
-        assertThat(r.getBody().nameSurrendered()).isTrue();
+        var r = rest.postForEntity("/api/game/today/surrender", null, SurrenderResult.class);
         assertThat(r.getBody().revealedName()).isEqualTo("pikachu");
     }
 }

@@ -90,7 +90,6 @@ Startup flow:
 | `pokemon-game.ai.openrouter.api-key` | `${OPENROUTER_API_KEY:}` | From `.env.local` |
 | `pokemon-game.ai.openrouter.model` | `meta-llama/llama-3.3-70b-instruct:free` | Free-tier hosted model |
 | `pokemon-game.pokeapi.base-url` | `https://pokeapi.co/api/v2` | PokeAPI |
-| `pokemon-game.auth.stub-user` | `dev` | User id until Keycloak |
 | `pokemon-game.scheduler.enabled` | `false` | `@Scheduled(cron=0 0 6 * * *)` zone Europe/Madrid |
 
 ## Chain order and quality

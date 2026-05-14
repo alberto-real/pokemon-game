@@ -3,7 +3,7 @@ package com.albertoreal.pokemongame;
 import com.albertoreal.pokemongame.game.AttemptResult;
 import com.albertoreal.pokemongame.game.DailyPokemonRepository;
 import com.albertoreal.pokemongame.game.GameState;
-import com.albertoreal.pokemongame.game.UserDailyAttemptRepository;
+import com.albertoreal.pokemongame.game.NameAttemptView;
 import com.albertoreal.pokemongame.game.dto.AttemptRequest;
 import com.albertoreal.pokemongame.pokeapi.PokeApiClient;
 import com.albertoreal.pokemongame.pokeapi.dto.PokemonDto;
@@ -24,6 +24,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -50,7 +51,6 @@ class EndToEndGameIT {
 
     @Autowired TestRestTemplate rest;
     @Autowired DailyPokemonRepository pokemonRepo;
-    @Autowired UserDailyAttemptRepository attemptRepo;
 
     @BeforeEach
     void seed() {
@@ -60,29 +60,37 @@ class EndToEndGameIT {
             new PokemonSpeciesDto(25, List.of(
                 new PokemonSpeciesDto.Name("Pikachu", new PokemonSpeciesDto.Language("es"))),
                 null, null, null));
-        attemptRepo.deleteAll();
     }
 
     @Test
     void fullDayFlow_fourMissesThenSolve_thenPerfectQuiz_score6() {
         // 1. Bootstrap the day
-        var state = rest.getForEntity("/api/game/today", GameState.class);
-        assertThat(state.getStatusCode().is2xxSuccessful()).isTrue();
-        assertThat(state.getBody().attemptsLeft()).isEqualTo(5);
+        var info = rest.getForEntity("/api/game/today", GameState.class);
+        assertThat(info.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(info.getBody().maxAttempts()).isEqualTo(5);
         assertThat(pokemonRepo.findById(LocalDate.now())).isPresent();
 
-        // 2. Four wrong attempts
+        // 2. Four wrong attempts — frontend echoes prior attempts back to the
+        //    server so it can compute hints and detect game-over.
+        var running = new ArrayList<NameAttemptView>();
         for (int i = 0; i < 4; i++) {
-            var r = rest.postForEntity("/api/game/today/attempt",
-                new AttemptRequest("zzzzz" + i), AttemptResult.class);
+            var r = rest.postForEntity(
+                "/api/game/today/attempt",
+                new AttemptRequest("zzzzz" + i, new ArrayList<>(running)),
+                AttemptResult.class);
             assertThat(r.getBody().correct()).isFalse();
+            running.add(new NameAttemptView(r.getBody().guess(), r.getBody().feedback()));
         }
 
         // 3. Solve on 5th attempt -> nameScore = 1
-        var hit = rest.postForEntity("/api/game/today/attempt",
-            new AttemptRequest("pikachu"), AttemptResult.class);
+        var hit = rest.postForEntity(
+            "/api/game/today/attempt",
+            new AttemptRequest("pikachu", running),
+            AttemptResult.class);
         assertThat(hit.getBody().correct()).isTrue();
-        assertThat(hit.getBody().state().nameScore()).isEqualTo(1);
+        assertThat(hit.getBody().nameScore()).isEqualTo(1);
+        assertThat(hit.getBody().revealedName()).isEqualTo("pikachu");
+        int nameScore = hit.getBody().nameScore();
 
         // 4. Get quiz
         var quizView = rest.getForObject("/api/game/today/quiz", QuizView.class);
@@ -90,34 +98,23 @@ class EndToEndGameIT {
 
         // 5. Answer each question. StubQuizGenerator correctIndex per question: [0,0,0,1,0].
         // We send letter transcripts ("a"/"b") rather than option text to avoid the
-        // MultipleChoiceMatcher ordinal-word rule ("una"/"uno" map to indices) which
-        // would mis-match for Q4 where the correct option text "Una" collides with the
-        // ordinal word for index 0. Letters are the highest-priority matcher rule.
+        // MultipleChoiceMatcher ordinal-word rule which would mis-match for Q4
+        // where the correct option text "Una" collides with the ordinal word
+        // for index 0. Letters are the highest-priority matcher rule.
         int[] correctIndices = {0, 0, 0, 1, 0};
         String[] letters = {"a", "b", "c", "d"};
+        int quizScore = 0;
         for (int i = 0; i < 5; i++) {
             var q = quizView.questions().get(i);
             String letterTranscript = letters[correctIndices[i]];
             var r = rest.postForEntity(
                 "/api/game/today/quiz/answer/" + q.id(),
                 new QuizAnswerRequest(letterTranscript), QuizAnswerResult.class);
-            if (i < 4) {
-                assertThat(r.getBody().quizComplete()).isFalse();
-                assertThat(r.getBody().correct()).isTrue();
-            } else {
-                assertThat(r.getBody().quizComplete()).isTrue();
-                assertThat(r.getBody().correct()).isTrue();
-                assertThat(r.getBody().quizScore()).isEqualTo(5);
-                assertThat(r.getBody().totalScore()).isEqualTo(6);
-            }
+            assertThat(r.getBody().correct()).isTrue();
+            quizScore++;
         }
 
-        // 6. Double-check DB state
-        var persisted = attemptRepo.findByUserIdAndDate("dev", LocalDate.now()).orElseThrow();
-        assertThat(persisted.getNameScore()).isEqualTo(1);
-        assertThat(persisted.getQuizScore()).isEqualTo(5);
-        assertThat(persisted.getTotalScore()).isEqualTo(6);
-        assertThat(persisted.isNameSolved()).isTrue();
-        assertThat(persisted.getCompletedAt()).isNotNull();
+        // 6. Frontend computes the total: 1 (name) + 5 (quiz) = 6
+        assertThat(nameScore + quizScore).isEqualTo(6);
     }
 }

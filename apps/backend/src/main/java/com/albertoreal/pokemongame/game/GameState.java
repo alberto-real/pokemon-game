@@ -1,19 +1,14 @@
 package com.albertoreal.pokemongame.game;
 
-import java.util.List;
-
+/**
+ * Immutable per-day info served on bootstrap. The frontend keeps the
+ * mutable session state (attempts, score, solved status) in memory; a
+ * page refresh therefore restarts the game.
+ */
 public record GameState(
-    int attemptsLeft,
-    int blurLevel,          // 0..4 (0 = full shadow; 4 = clear image)
-    boolean nameSolved,
-    boolean nameSurrendered,
-    String revealedName,    // null if not yet revealed
-    String revealedNameEs,
     String imageUrl,
-    Integer nameScore,      // null while in progress
+    int nameLength,
     boolean quizReady,
     String quizStatus,
-    List<NameAttemptView> nameAttempts,
-    int nameLength,
-    String hints
+    int maxAttempts
 ) {}

@@ -52,4 +52,21 @@ class MultipleChoiceMatcherTest {
         assertThat(m.match("", OPTIONS)).isEmpty();
         assertThat(m.match(null, OPTIONS)).isEmpty();
     }
+
+    @Test
+    void matchesByFuzzyTypo() {
+        var types = List.of("Fuego", "Agua", "Hierba", "Venenoso");
+        // Common Spanish ortographic mistakes
+        assertThat(m.match("ierva", types)).hasValue(2);   // hierba
+        assertThat(m.match("fueego", types)).hasValue(0);  // fuego
+        assertThat(m.match("benenoso", types)).hasValue(3); // venenoso
+    }
+
+    @Test
+    void fuzzyDoesNotOvermatchUnrelatedInput() {
+        var types = List.of("Fuego", "Agua", "Hierba", "Venenoso");
+        // Far enough from every option, even in edit distance terms
+        assertThat(m.match("electrico", types)).isEmpty();
+        assertThat(m.match("psiquico", types)).isEmpty();
+    }
 }
