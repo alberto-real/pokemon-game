@@ -40,6 +40,9 @@ public class GameService {
         var date = LocalDate.now();
         var pokemon = pokemonRepo.findById(date).orElseThrow();
         DailyQuiz quiz = quizRepo.findById(date).orElseThrow();
+        // Repopulate the in-memory catalog on bootstrap so voice fuzzy
+        // matching keeps working after a backend restart.
+        catalog.register(pokemon.getPokemonName());
         String answer = TextNormalizer.normalize(pokemon.getPokemonName());
         return new GameState(
             pokemon.getImageUrl(),
@@ -65,12 +68,13 @@ public class GameService {
         var matcher = new PokemonNameMatcher(catalog.all());
         var matched = matcher.match(transcript);
 
-        boolean correct = matched
-            .map(m -> m.equalsIgnoreCase(pokemon.getPokemonName()))
-            .orElse(false);
-
+        // Use the matcher to canonicalize fuzzy voice transcripts when
+        // possible, but always derive correctness from the normalized guess
+        // against the normalized answer — the catalog can be incomplete (e.g.
+        // after a backend restart) and we must not penalize an exact match.
         String guess = matched.orElseGet(() -> TextNormalizer.normalize(transcript));
         String feedback = guess.isEmpty() ? "" : WordleEvaluator.evaluate(guess, answer);
+        boolean correct = !guess.isEmpty() && guess.equals(answer);
         int attemptsUsedAfter = prior.size() + 1;
 
         if (correct) {
