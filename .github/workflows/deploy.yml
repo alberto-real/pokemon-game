@@ -25,8 +25,12 @@ jobs:
         env:
           HOST: ${{ secrets.VM_HOST }}
           USER: ${{ secrets.VM_USER }}
+          PUBLIC_URL: ${{ secrets.PUBLIC_URL }}
         run: |
-          ssh -i ~/.ssh/deploy_key "$USER@$HOST" bash -s <<'EOF'
+          # Pass CORS_ALLOWED_ORIGINS to the remote shell so docker compose can
+          # substitute it into the backend service environment. PUBLIC_URL is
+          # the public hostname (no scheme); we add https:// here.
+          ssh -i ~/.ssh/deploy_key "$USER@$HOST" "CORS_ALLOWED_ORIGINS=https://$PUBLIC_URL bash -s" <<'EOF'
           set -euo pipefail
           cd /home/ubuntu/pokemon-game
           echo "=== git pull ==="
