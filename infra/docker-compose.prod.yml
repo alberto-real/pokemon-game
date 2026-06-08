@@ -51,7 +51,7 @@ services:
         condition: service_healthy
     ports:
       # Solo accesible vía localhost en la VM; Cloudflare Tunnel (cloudflared systemd) lo expone como pokemon.albertoreal.com.
-      - "127.0.0.1:8080:80"
+      - "127.0.0.1:8090:80"
     networks:
       - internal
 
