@@ -12,7 +12,10 @@ public record AiProvidersProperties(
     public AiProvidersProperties {
         if (provider == null || provider.isBlank()) provider = "stub";
         if (ollama == null) ollama = new Ollama("http://localhost:11434", "llama3.2:latest");
-        if (groq == null) groq = new Groq(null, "llama-3.3-70b-versatile", false);
+        
+        // Modelo rápido, ligero y 100% gratuito sin restricciones molestas
+        if (groq == null) groq = new Groq(null, "llama-3.1-8b-instant", false);
+
         if (openrouter == null) openrouter = new OpenRouter(null,
             "meta-llama/llama-3.3-70b-instruct:free", false);
     }
