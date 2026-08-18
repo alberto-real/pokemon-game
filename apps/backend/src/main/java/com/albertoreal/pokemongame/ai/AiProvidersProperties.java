@@ -12,12 +12,9 @@ public record AiProvidersProperties(
     public AiProvidersProperties {
         if (provider == null || provider.isBlank()) provider = "stub";
         if (ollama == null) ollama = new Ollama("http://localhost:11434", "llama3.2:latest");
-        
-        // Modelo rápido, ligero y 100% gratuito sin restricciones molestas
-        if (groq == null) groq = new Groq(null, "llama-3.1-8b-instant", false);
-
+        if (groq == null) groq = new Groq(null, "openai/gpt-oss-20b", false);
         if (openrouter == null) openrouter = new OpenRouter(null,
-            "meta-llama/llama-3.3-70b-instruct:free", false);
+            "openai/gpt-oss-20b:free", false);
     }
 
     public record Ollama(String baseUrl, String model) {
@@ -29,13 +26,13 @@ public record AiProvidersProperties(
 
     public record Groq(String apiKey, String model, boolean enabled) {
         public Groq {
-            if (model == null || model.isBlank()) model = "llama-3.3-70b-versatile";
+            if (model == null || model.isBlank()) model = "openai/gpt-oss-20b";
         }
     }
 
     public record OpenRouter(String apiKey, String model, boolean enabled) {
         public OpenRouter {
-            if (model == null || model.isBlank()) model = "meta-llama/llama-3.3-70b-instruct:free";
+            if (model == null || model.isBlank()) model = "openai/gpt-oss-20b:free";
         }
     }
 }
