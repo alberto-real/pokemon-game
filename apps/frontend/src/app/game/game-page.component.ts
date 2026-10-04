@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TranslateModule } from '@ngx-translate/core';
 
@@ -8,6 +8,7 @@ import { VoiceRecorderComponent } from '../voice/voice-recorder.component';
 import { QuizRunnerComponent } from './quiz-runner.component';
 import { AttemptsHistoryComponent } from './attempts-history.component';
 import { GameStateService } from './game-state.service';
+import { LanguageService } from '../i18n/language.service';
 
 @Component({
   selector: 'app-game-page',
@@ -40,7 +41,7 @@ import { GameStateService } from './game-state.service';
             @if (state.nameRevealed()) {
               <div class="alert alert-success mt-auto">
                 {{
-                  'game.revealed' | translate: { name: state.revealedNameEs() }
+                  'game.revealed' | translate: { name: revealedName() }
                 }}
               </div>
             }
@@ -93,10 +94,15 @@ import { GameStateService } from './game-state.service';
 export class GamePageComponent implements OnInit {
   private readonly api = inject(GameApi);
   protected readonly state = inject(GameStateService);
+  private readonly lang = inject(LanguageService);
 
   protected readonly lastFeedback = signal<{ ok: boolean } | null>(null);
   protected readonly processing = signal(false);
   protected readonly finalScore = signal<number | null>(null);
+
+  protected readonly revealedName = computed(() =>
+    this.lang.current() === 'es' ? this.state.revealedNameEs() : this.state.revealedName(),
+  );
 
   async ngOnInit(): Promise<void> {
     try {
