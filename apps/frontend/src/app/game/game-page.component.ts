@@ -73,7 +73,7 @@ import { LanguageService } from '../i18n/language.service';
         }
 
         @if (lastFeedback(); as f) {
-          <div class="toast toast-top toast-center">
+          <div class="toast toast-bottom toast-center mb-8">
             <div
               class="alert"
               [class.alert-success]="f.ok"

@@ -158,13 +158,14 @@ export class QuizRunnerComponent implements OnInit {
       const delay = r.correct ? 1500 : 3500;
       const isLast = this.index() + 1 >= this.questions().length;
       if (isLast) {
-        const total = this.nameScore() + this.quizScore();
-        this.finalScore.set(total);
-        this.question.set(null);
         if (this.quizScore() === this.total() && this.total() > 0) {
           this.confetti.celebrate();
         }
         setTimeout(() => {
+          const total = this.nameScore() + this.quizScore();
+          this.finalScore.set(total);
+          this.question.set(null);
+          this.lastResult.set(null);
           this.processing.set(false);
           this.completed.emit(total);
         }, delay);
