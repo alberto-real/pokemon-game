@@ -38,8 +38,12 @@
     }
 
     @if (lastFeedback(); as f) {
-      <div class="toast toast-bottom toast-center mb-8">
-        <div class="alert" [class.alert-success]="f.ok" [class.alert-error]="!f.ok">
+      <div
+        class="fixed inset-x-0 top-4 z-50 flex justify-center pointer-events-none"
+        role="status"
+        aria-live="polite"
+      >
+        <div class="alert shadow-lg" [class.alert-success]="f.ok" [class.alert-error]="!f.ok">
           {{ (f.ok ? 'game.correct' : 'game.incorrect') | translate }}
         </div>
       </div>
