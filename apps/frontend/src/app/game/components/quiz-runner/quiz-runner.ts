@@ -9,78 +9,16 @@ import {
 import { CommonModule } from '@angular/common';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
-import { GameApi } from '../api/game-api.service';
-import { QuestionView, QuizAnswerResult } from '../api/types';
-import { TtsPlayerService } from '../voice/tts-player.service';
-import { VoiceRecorderComponent } from '../voice/voice-recorder.component';
-import { ConfettiService } from './confetti.service';
+import { GameApi } from '../../../api/game-api.service';
+import { QuestionView, QuizAnswerResult } from '../../../api/types';
+import { TtsPlayerService } from '../../../voice/services/tts-player.service';
+import { VoiceRecorderComponent } from '../../../voice/components/voice-recorder/voice-recorder';
+import { ConfettiService } from '../../services/confetti.service';
 
 @Component({
   selector: 'app-quiz-runner',
-  standalone: true,
   imports: [CommonModule, TranslateModule, VoiceRecorderComponent],
-  template: `
-    @if (question(); as q) {
-      <div class="card bg-base-200 p-4 space-y-3">
-        <div class="flex items-center justify-between gap-2">
-          <span class="text-sm opacity-70">
-            {{ 'quiz.question_of' | translate: { n: q.position, total: total() } }}
-          </span>
-          <button
-            class="btn btn-ghost btn-sm btn-circle"
-            [attr.aria-label]="'quiz.play' | translate"
-            [title]="'quiz.play' | translate"
-            (click)="playQuestion()"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
-              <path d="M8 5v14l11-7z" />
-            </svg>
-          </button>
-        </div>
-        <div class="text-xl font-semibold">{{ q.text }}</div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-          @for (opt of q.options; track $index) {
-            <button
-              class="btn btn-outline justify-start gap-3 h-auto py-3 text-left normal-case"
-              [disabled]="processing() || lastResult() !== null"
-              (click)="onAnswer(letter($index))"
-            >
-              <span class="kbd kbd-sm">{{ letter($index) }}</span>
-              <span class="flex-1">{{ opt }}</span>
-            </button>
-          }
-        </div>
-        <app-voice-recorder
-          [disabled]="processing() || lastResult() !== null"
-          (transcript)="onAnswer($event)"
-        />
-        @if (lastResult(); as r) {
-          <div
-            class="alert"
-            [class.alert-success]="r.correct"
-            [class.alert-error]="!r.correct"
-          >
-            @if (r.correct) {
-              {{ 'game.correct' | translate }}
-            } @else {
-              {{
-                'quiz.wrong_answer'
-                  | translate: { answer: q.options[r.correctIndex] }
-              }}
-            }
-          </div>
-        }
-      </div>
-    } @else if (finalScore() !== null) {
-      <div class="alert alert-info text-lg">
-        {{ 'quiz.final_score' | translate: { score: finalScore() } }}
-      </div>
-    } @else {
-      <div class="flex justify-center">
-        <span class="loading loading-dots"></span>
-      </div>
-    }
-  `,
+  templateUrl: './quiz-runner.html',
 })
 export class QuizRunnerComponent implements OnInit {
   private readonly api = inject(GameApi);

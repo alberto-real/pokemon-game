@@ -1,0 +1,48 @@
+<div class="card bg-base-200 shadow-sm">
+  <div class="card-body p-4">
+    <h3 class="card-title text-base">
+      {{ 'game.attempts_history' | translate }}
+      <span class="text-sm font-normal opacity-70">{{ used() }}/{{ max() }}</span>
+    </h3>
+
+    @if (rows().length === 0 && !showNextRow()) {
+      <p class="text-sm opacity-60">{{ 'game.no_attempts_yet' | translate }}</p>
+    } @else {
+      <ul class="space-y-2">
+        @for (row of rows(); track row.index) {
+          <li class="flex items-center gap-2">
+            <span class="text-xs opacity-60 w-4 text-right">{{ row.index }}.</span>
+            <div class="flex gap-1 flex-wrap">
+              @for (tile of row.tiles; track $index) {
+                <span
+                  class="inline-flex items-center justify-center w-7 h-7 rounded text-sm font-bold uppercase text-white"
+                  [class.bg-success]="tile.status === 'H'"
+                  [class.bg-warning]="tile.status === 'P'"
+                  [class.bg-error]="tile.status === 'M'"
+                >
+                  {{ tile.letter }}
+                </span>
+              }
+            </div>
+          </li>
+        }
+        @if (showNextRow()) {
+          <li class="flex items-center gap-2">
+            <span class="text-xs opacity-60 w-4 text-right">{{ used() + 1 }}.</span>
+            <div class="flex gap-1 flex-wrap">
+              @for (char of nextRowChars(); track $index) {
+                <span
+                  class="inline-flex items-center justify-center w-7 h-7 text-sm font-bold uppercase border-b-2 border-base-content/40"
+                >
+                  @if (char !== '_') {
+                    <span class="opacity-40">{{ char }}</span>
+                  }
+                </span>
+              }
+            </div>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+</div>

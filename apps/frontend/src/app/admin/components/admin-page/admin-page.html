@@ -1,0 +1,26 @@
+<div class="container mx-auto max-w-xl p-4 space-y-4">
+  <h2 class="text-2xl font-bold">{{ 'admin.title' | translate }}</h2>
+  <div class="card bg-base-200 p-4 space-y-3">
+    <div class="flex gap-2">
+      <input
+        type="date"
+        [(ngModel)]="date"
+        class="input input-bordered flex-1"
+      />
+    </div>
+    <div class="flex gap-2 flex-wrap">
+      <button class="btn btn-primary" (click)="generate()">
+        {{ 'admin.generate' | translate }}
+      </button>
+      <button class="btn btn-warning" (click)="regenerate()">
+        {{ 'admin.regenerate' | translate }}
+      </button>
+      <button class="btn btn-outline" (click)="status()">
+        {{ 'admin.status' | translate }}
+      </button>
+    </div>
+    @if (result(); as r) {
+      <pre class="bg-base-300 rounded p-2 text-xs overflow-x-auto">{{ r }}</pre>
+    }
+  </div>
+</div>

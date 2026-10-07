@@ -5,20 +5,17 @@ export const routes: Routes = [
   {
     path: '',
     loadComponent: () =>
-      import('./landing/landing-page.component').then(
-        (m) => m.LandingPageComponent,
-      ),
+      import('./landing/components/landing-page/landing-page').then((m) => m.LandingPageComponent),
   },
   {
     path: 'game',
     loadComponent: () =>
-      import('./game/game-page.component').then((m) => m.GamePageComponent),
+      import('./game/components/game-page/game-page').then((m) => m.GamePageComponent),
   },
   {
     path: 'admin',
     canActivate: [adminGuard],
-    loadComponent: () =>
-      import('./admin/admin-page.component').then((m) => m.AdminPageComponent),
+    loadComponent: () => import('./admin/components/admin-page/admin-page').then((m) => m.AdminPageComponent),
   },
   { path: '**', redirectTo: '' },
 ];

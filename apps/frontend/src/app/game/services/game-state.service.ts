@@ -1,11 +1,6 @@
 import { Injectable, computed, signal } from '@angular/core';
 
-import {
-  AttemptResult,
-  GameState,
-  NameAttemptView,
-  SurrenderResult,
-} from '../api/types';
+import { AttemptResult, GameState, NameAttemptView, SurrenderResult } from '../../api/types';
 
 /**
  * Per-session game state. Held in memory only — a page refresh creates a
@@ -38,18 +33,13 @@ export class GameStateService {
    * solving one if the name was guessed; surrender does not count as an
    * attempt.
    */
-  readonly attemptsUsed = computed(
-    () => this._attempts().length + (this._nameSolved() ? 1 : 0),
-  );
+  readonly attemptsUsed = computed(() => this._attempts().length + (this._nameSolved() ? 1 : 0));
   readonly attemptsLeft = computed(() =>
     Math.max(0, (this._bootstrap()?.maxAttempts ?? 0) - this.attemptsUsed()),
   );
   readonly blurLevel = computed(() => Math.min(this.attemptsUsed(), 4));
   readonly nameRevealed = computed(
-    () =>
-      this._nameSolved() ||
-      this._nameSurrendered() ||
-      this._revealedName() !== null,
+    () => this._nameSolved() || this._nameSurrendered() || this._revealedName() !== null,
   );
 
   initialize(state: GameState): void {
@@ -76,10 +66,7 @@ export class GameStateService {
     }
 
     if (r.guess) {
-      this._attempts.update((prev) => [
-        ...prev,
-        { guess: r.guess, feedback: r.feedback },
-      ]);
+      this._attempts.update((prev) => [...prev, { guess: r.guess, feedback: r.feedback }]);
     }
 
     if (r.revealedName) {

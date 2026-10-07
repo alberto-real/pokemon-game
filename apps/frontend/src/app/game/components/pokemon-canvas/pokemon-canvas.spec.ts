@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { PokemonCanvasComponent } from './pokemon-canvas.component';
+import { PokemonCanvasComponent } from './pokemon-canvas';
 
 describe('PokemonCanvasComponent', () => {
   let fixture: ComponentFixture<PokemonCanvasComponent>;

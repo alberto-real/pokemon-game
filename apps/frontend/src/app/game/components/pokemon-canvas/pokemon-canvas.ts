@@ -2,17 +2,7 @@ import { Component, computed, input } from '@angular/core';
 
 @Component({
   selector: 'app-pokemon-canvas',
-  standalone: true,
-  template: `
-    <div class="flex items-center justify-center bg-slate-100 rounded-box p-6 shadow-inner">
-      <img
-        [src]="imageUrl()"
-        alt="Pokemon"
-        class="w-64 h-64 object-contain transition-all duration-500"
-        [style.filter]="filter()"
-      />
-    </div>
-  `,
+  templateUrl: './pokemon-canvas.html',
 })
 export class PokemonCanvasComponent {
   readonly imageUrl = input.required<string>();
