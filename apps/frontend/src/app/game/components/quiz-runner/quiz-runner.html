@@ -1,5 +1,14 @@
 @if (question(); as q) {
   <div class="card bg-base-200 p-4 space-y-3">
+    @if (lastResult(); as r) {
+      <div class="alert" [class.alert-success]="r.correct" [class.alert-error]="!r.correct">
+        @if (r.correct) {
+          {{ 'game.correct' | translate }}
+        } @else {
+          {{ 'quiz.wrong_answer' | translate: { answer: q.options[r.correctIndex] } }}
+        }
+      </div>
+    }
     <div class="flex items-center justify-between gap-2">
       <span class="text-sm opacity-70">
         {{ 'quiz.question_of' | translate: { n: q.position, total: total() } }}
@@ -10,7 +19,12 @@
         [title]="'quiz.play' | translate"
         (click)="playQuestion()"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          class="w-5 h-5"
+        >
           <path d="M8 5v14l11-7z" />
         </svg>
       </button>
@@ -32,22 +46,6 @@
       [disabled]="processing() || lastResult() !== null"
       (transcript)="onAnswer($event)"
     />
-    @if (lastResult(); as r) {
-      <div
-        class="alert"
-        [class.alert-success]="r.correct"
-        [class.alert-error]="!r.correct"
-      >
-        @if (r.correct) {
-          {{ 'game.correct' | translate }}
-        } @else {
-          {{
-            'quiz.wrong_answer'
-              | translate: { answer: q.options[r.correctIndex] }
-          }}
-        }
-      </div>
-    }
   </div>
 } @else if (finalScore() !== null) {
   <div class="alert alert-info text-lg">
