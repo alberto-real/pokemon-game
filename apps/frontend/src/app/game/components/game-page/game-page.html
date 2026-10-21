@@ -16,7 +16,8 @@
         />
         @if (state.nameRevealed()) {
           <div class="alert alert-success mt-auto">
-            {{ 'game.revealed' | translate }} <strong class="text-lg font-bold">{{ revealedName() }}</strong>
+            {{ 'game.revealed' | translate }}:
+            <strong class="text-lg font-bold">{{ revealedName() }}</strong>
           </div>
         }
       </div>
