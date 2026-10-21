@@ -1,0 +1,27 @@
+@if (hasBirthdaysToday()) {
+  <section class="birthday-panel" aria-labelledby="birthday-heading">
+    <div class="birthday-gif-container">
+      <img 
+        [ngSrc]="randomGif()" 
+        alt="" 
+        aria-hidden="true"
+        width="300" 
+        height="200"
+        class="birthday-gif"
+        priority
+      />
+    </div>
+    <h2 id="birthday-heading" class="birthday-title">
+      <span class="birthday-icon" aria-hidden="true">🎂</span>
+      {{ 'birthday.today' | translate }}
+    </h2>
+    <ul class="birthday-list" role="list">
+      @for (person of todayBirthdays(); track person.name) {
+        <li class="birthday-item">
+          <span class="birthday-name">{{ person.name }}</span>
+          <span class="birthday-greeting">{{ 'birthday.happy_birthday' | translate }}</span>
+        </li>
+      }
+    </ul>
+  </section>
+}

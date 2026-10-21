@@ -32,5 +32,9 @@
     "generate": "Generar hoy",
     "regenerate": "Regenerar fecha",
     "status": "Estado"
+  },
+  "birthday": {
+    "today": "¡Cumpleaños de hoy!",
+    "happy_birthday": "¡Feliz cumpleaños!"
   }
 }

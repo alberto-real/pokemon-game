@@ -1,0 +1,24 @@
+{
+  "birthdays": [
+    {
+      "name": "Lucía",
+      "day": 24,
+      "month": 12
+    },
+    {
+      "name": "Nadia",
+      "day": 27,
+      "month": 10
+    },
+    {
+      "name": "Noemí",
+      "day": 26,
+      "month": 3
+    },
+    {
+      "name": "Alberto",
+      "day": 21,
+      "month": 10
+    }
+  ]
+}
