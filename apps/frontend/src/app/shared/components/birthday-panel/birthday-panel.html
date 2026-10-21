@@ -1,11 +1,12 @@
+hasBirthdaysToday: {{ todayBirthdays() | json }}
 @if (hasBirthdaysToday()) {
   <section class="birthday-panel" aria-labelledby="birthday-heading">
     <div class="birthday-gif-container">
-      <img 
-        [ngSrc]="randomGif()" 
-        alt="" 
+      <img
+        [ngSrc]="randomGif()"
+        alt=""
         aria-hidden="true"
-        width="300" 
+        width="300"
         height="200"
         class="birthday-gif"
         priority
