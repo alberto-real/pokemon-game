@@ -13,7 +13,7 @@
     "surrender": "Me rindo",
     "correct": "¡Correcto!",
     "incorrect": "Incorrecto",
-    "revealed": "Era {{name}}",
+    "revealed": "Su nombre es",
     "voice_not_detected": "No te he oído, repite por favor",
     "attempts_history": "Intentos",
     "no_attempts_yet": "Aún no has intentado ningún nombre",

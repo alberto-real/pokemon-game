@@ -13,7 +13,7 @@
     "surrender": "Give up",
     "correct": "Correct!",
     "incorrect": "Wrong",
-    "revealed": "It was {{name}}",
+    "revealed": "Its name is",
     "voice_not_detected": "I didn't catch that, please try again",
     "attempts_history": "Attempts",
     "no_attempts_yet": "No attempts yet",
