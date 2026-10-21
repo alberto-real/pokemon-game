@@ -1,7 +1,7 @@
 import { Component, inject, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { TranslateModule } from '@ngx-translate/core';
-import { JsonPipe, NgOptimizedImage } from '@angular/common';
+import { NgOptimizedImage } from '@angular/common';
 
 interface Birthday {
   name: string;
@@ -22,7 +22,7 @@ const BIRTHDAY_GIFS = [
 
 @Component({
   selector: 'app-birthday-panel',
-  imports: [TranslateModule, NgOptimizedImage, JsonPipe],
+  imports: [TranslateModule, NgOptimizedImage],
   templateUrl: './birthday-panel.html',
   styleUrl: './birthday-panel.css',
 })
