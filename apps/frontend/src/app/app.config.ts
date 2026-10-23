@@ -19,6 +19,8 @@ export const appConfig: ApplicationConfig = {
     provideTranslateService({
       fallbackLang: 'es',
     }),
-    provideTranslateHttpLoader({ prefix: '/i18n/', suffix: '.json' }),
+    // Cache-busting query: translation files are not fingerprinted, and clients
+    // that cached them before nginx sent no-cache would otherwise keep a stale copy.
+    provideTranslateHttpLoader({ prefix: '/i18n/', suffix: `.json?v=${Date.now()}` }),
   ],
 };
