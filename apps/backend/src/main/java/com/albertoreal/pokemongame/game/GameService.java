@@ -4,6 +4,7 @@ import com.albertoreal.pokemongame.common.TextNormalizer;
 import com.albertoreal.pokemongame.quiz.DailyQuiz;
 import com.albertoreal.pokemongame.quiz.DailyQuizRepository;
 import com.albertoreal.pokemongame.quiz.QuizStatus;
+import org.apache.commons.text.similarity.LevenshteinDistance;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -43,6 +44,7 @@ public class GameService {
         // Repopulate the in-memory catalog on bootstrap so voice fuzzy
         // matching keeps working after a backend restart.
         catalog.register(pokemon.getPokemonName());
+        catalog.register(pokemon.getPokemonNameEs());
         String answer = TextNormalizer.normalize(pokemon.getPokemonName());
         return new GameState(
             pokemon.getImageUrl(),
@@ -64,7 +66,8 @@ public class GameService {
             return gameOverResult(false, prior, pokemon);
         }
 
-        String answer = TextNormalizer.normalize(pokemon.getPokemonName());
+        // The player may answer in either language, so any accepted name wins.
+        List<String> answers = acceptedAnswers(pokemon);
         var matcher = new PokemonNameMatcher(catalog.all());
         var matched = matcher.match(transcript);
 
@@ -73,8 +76,9 @@ public class GameService {
         // against the normalized answer — the catalog can be incomplete (e.g.
         // after a backend restart) and we must not penalize an exact match.
         String guess = matched.orElseGet(() -> TextNormalizer.normalize(transcript));
+        String answer = closestAnswer(guess, answers);
         String feedback = guess.isEmpty() ? "" : WordleEvaluator.evaluate(guess, answer);
-        boolean correct = !guess.isEmpty() && guess.equals(answer);
+        boolean correct = !guess.isEmpty() && answers.contains(guess);
         int attemptsUsedAfter = prior.size() + 1;
 
         if (correct) {
@@ -112,6 +116,29 @@ public class GameService {
 
         String hints = calculateHints(answer, running, attemptsUsedAfter);
         return new AttemptResult(false, guess, feedback, hints, null, null, null);
+    }
+
+    private static List<String> acceptedAnswers(DailyPokemon pokemon) {
+        var answers = new ArrayList<String>(2);
+        answers.add(TextNormalizer.normalize(pokemon.getPokemonName()));
+        String es = TextNormalizer.normalize(pokemon.getPokemonNameEs());
+        if (!es.isEmpty() && !answers.contains(es)) answers.add(es);
+        return answers;
+    }
+
+    /** Reference name for feedback/hints: the accepted name closest to the guess (English on ties). */
+    private static String closestAnswer(String guess, List<String> answers) {
+        var distance = LevenshteinDistance.getDefaultInstance();
+        String best = answers.get(0);
+        int bestDistance = distance.apply(guess, best);
+        for (String candidate : answers.subList(1, answers.size())) {
+            int d = distance.apply(guess, candidate);
+            if (d < bestDistance) {
+                best = candidate;
+                bestDistance = d;
+            }
+        }
+        return best;
     }
 
     public SurrenderResult surrender() {

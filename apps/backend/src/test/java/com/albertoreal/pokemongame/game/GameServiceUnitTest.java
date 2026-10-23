@@ -69,4 +69,41 @@ class GameServiceUnitTest {
 
         assertThat(catalog.all()).contains("garchomp");
     }
+
+    private void seedBilingualPokemon(String nameEn, String nameEs) {
+        var date = LocalDate.now();
+        var pokemon = new DailyPokemon(date, 1005, nameEn, nameEs, "url", OffsetDateTime.now());
+        when(pokemonRepo.findById(any(LocalDate.class))).thenReturn(Optional.of(pokemon));
+        when(quizRepo.findById(any(LocalDate.class)))
+            .thenReturn(Optional.of(new DailyQuiz(date, QuizStatus.READY, OffsetDateTime.now())));
+    }
+
+    @Test
+    void spanishNameGuessIsCorrect() {
+        seedBilingualPokemon("roaring-moon", "Bramaluna");
+
+        var r = gameService.attempt("Bramaluna", List.of());
+
+        assertThat(r.correct()).isTrue();
+        assertThat(r.feedback()).isEqualTo("HHHHHHHHH");
+        assertThat(r.revealedName()).isEqualTo("roaring-moon");
+        assertThat(r.revealedNameEs()).isEqualTo("Bramaluna");
+    }
+
+    @Test
+    void englishNameGuessIsStillCorrectWithSpanishName() {
+        seedBilingualPokemon("roaring-moon", "Bramaluna");
+
+        assertThat(gameService.attempt("roaring-moon", List.of()).correct()).isTrue();
+    }
+
+    @Test
+    void wrongSpanishLeaningGuessGetsFeedbackAgainstClosestName() {
+        seedBilingualPokemon("roaring-moon", "Bramaluna");
+
+        var r = gameService.attempt("bramalunx", List.of());
+
+        assertThat(r.correct()).isFalse();
+        assertThat(r.feedback()).isEqualTo("HHHHHHHHM");
+    }
 }
