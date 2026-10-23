@@ -31,7 +31,7 @@ public class GameController {
 
     @PostMapping("/today/attempt")
     public AttemptResult attempt(@Valid @RequestBody AttemptRequest req) {
-        return gameService.attempt(req.transcript(), req.previousAttempts());
+        return gameService.attempt(req.transcript(), req.previousAttempts(), req.language());
     }
 
     @PostMapping("/today/surrender")

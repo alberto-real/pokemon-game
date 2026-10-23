@@ -7,6 +7,7 @@ export interface NameAttemptView {
 export interface GameState {
   imageUrl: string;
   nameLength: number;
+  nameLengthEs: number;
   quizReady: boolean;
   quizStatus: string;
   maxAttempts: number;

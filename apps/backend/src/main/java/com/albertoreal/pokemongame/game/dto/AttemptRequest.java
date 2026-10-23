@@ -11,8 +11,11 @@ import java.util.List;
  *                          feedback (echoed back from prior responses).
  *                          Required so the server can compute hints and
  *                          decide whether the game is now over.
+ * @param language          UI language ("es" or "en"); hints are computed
+ *                          against the name in that language. Optional.
  */
 public record AttemptRequest(
     @NotBlank String transcript,
-    List<NameAttemptView> previousAttempts
+    List<NameAttemptView> previousAttempts,
+    String language
 ) {}

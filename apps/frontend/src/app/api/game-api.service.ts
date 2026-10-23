@@ -22,11 +22,13 @@ export class GameApi {
   attempt(
     transcript: string,
     previousAttempts: NameAttemptView[],
+    language?: string,
   ): Promise<AttemptResult> {
     return firstValueFrom(
       this.http.post<AttemptResult>('/api/game/today/attempt', {
         transcript,
         previousAttempts,
+        language,
       }),
     );
   }

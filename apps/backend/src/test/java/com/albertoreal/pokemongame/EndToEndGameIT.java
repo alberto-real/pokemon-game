@@ -76,7 +76,7 @@ class EndToEndGameIT {
         for (int i = 0; i < 4; i++) {
             var r = rest.postForEntity(
                 "/api/game/today/attempt",
-                new AttemptRequest("zzzzz" + i, new ArrayList<>(running)),
+                new AttemptRequest("zzzzz" + i, new ArrayList<>(running), null),
                 AttemptResult.class);
             assertThat(r.getBody().correct()).isFalse();
             running.add(new NameAttemptView(r.getBody().guess(), r.getBody().feedback()));
@@ -85,7 +85,7 @@ class EndToEndGameIT {
         // 3. Solve on 5th attempt -> nameScore = 1
         var hit = rest.postForEntity(
             "/api/game/today/attempt",
-            new AttemptRequest("pikachu", running),
+            new AttemptRequest("pikachu", running, null),
             AttemptResult.class);
         assertThat(hit.getBody().correct()).isTrue();
         assertThat(hit.getBody().nameScore()).isEqualTo(1);

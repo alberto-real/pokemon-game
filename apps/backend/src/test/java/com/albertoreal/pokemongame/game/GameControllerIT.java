@@ -69,7 +69,7 @@ class GameControllerIT {
 
         var r = rest.postForEntity(
             "/api/game/today/attempt",
-            new AttemptRequest("pikachu", List.of()),
+            new AttemptRequest("pikachu", List.of(), null),
             AttemptResult.class);
 
         assertThat(r.getBody().correct()).isTrue();

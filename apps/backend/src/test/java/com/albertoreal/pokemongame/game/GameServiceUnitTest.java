@@ -106,4 +106,21 @@ class GameServiceUnitTest {
         assertThat(r.correct()).isFalse();
         assertThat(r.feedback()).isEqualTo("HHHHHHHHM");
     }
+
+    @Test
+    void todayExposesNameLengthPerLanguage() {
+        seedBilingualPokemon("roaring-moon", "Bramaluna");
+
+        var s = gameService.today();
+
+        assertThat(s.nameLength()).isEqualTo(11);
+        assertThat(s.nameLengthEs()).isEqualTo(9);
+    }
+
+    @Test
+    void todayFallsBackToEnglishLengthWithoutSpanishName() {
+        seedBilingualPokemon("krookodile", "");
+
+        assertThat(gameService.today().nameLengthEs()).isEqualTo(10);
+    }
 }

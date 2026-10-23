@@ -8,6 +8,7 @@ describe('GameStateService', () => {
   const bootstrap: GameState = {
     imageUrl: 'x',
     nameLength: 5,
+    nameLengthEs: 5,
     quizReady: true,
     quizStatus: 'READY',
     maxAttempts: 3,

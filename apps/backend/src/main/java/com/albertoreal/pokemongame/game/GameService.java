@@ -46,9 +46,11 @@ public class GameService {
         catalog.register(pokemon.getPokemonName());
         catalog.register(pokemon.getPokemonNameEs());
         String answer = TextNormalizer.normalize(pokemon.getPokemonName());
+        String answerEs = acceptedAnswers(pokemon).getLast();
         return new GameState(
             pokemon.getImageUrl(),
             answer.length(),
+            answerEs.length(),
             quiz.getStatus() == QuizStatus.READY,
             quiz.getStatus().name(),
             MAX_ATTEMPTS
@@ -56,6 +58,10 @@ public class GameService {
     }
 
     public AttemptResult attempt(String transcript, List<NameAttemptView> previousAttempts) {
+        return attempt(transcript, previousAttempts, null);
+    }
+
+    public AttemptResult attempt(String transcript, List<NameAttemptView> previousAttempts, String language) {
         var date = LocalDate.now();
         var pokemon = pokemonRepo.findById(date).orElseThrow();
         var prior = previousAttempts == null ? List.<NameAttemptView>of() : previousAttempts;
@@ -114,7 +120,7 @@ public class GameService {
             );
         }
 
-        String hints = calculateHints(answer, running, attemptsUsedAfter);
+        String hints = calculateHints(hintAnswer(pokemon, answers, language), running, attemptsUsedAfter);
         return new AttemptResult(false, guess, feedback, hints, null, null, null);
     }
 
@@ -124,6 +130,11 @@ public class GameService {
         String es = TextNormalizer.normalize(pokemon.getPokemonNameEs());
         if (!es.isEmpty() && !answers.contains(es)) answers.add(es);
         return answers;
+    }
+
+    /** Name the hints are built from: the one in the UI language, so it matches the tile count shown. */
+    private static String hintAnswer(DailyPokemon pokemon, List<String> answers, String language) {
+        return "es".equalsIgnoreCase(language) ? answers.getLast() : answers.getFirst();
     }
 
     /** Reference name for feedback/hints: the accepted name closest to the guess (English on ties). */

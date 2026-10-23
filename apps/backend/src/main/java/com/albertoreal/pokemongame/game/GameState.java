@@ -8,6 +8,7 @@ package com.albertoreal.pokemongame.game;
 public record GameState(
     String imageUrl,
     int nameLength,
+    int nameLengthEs,
     boolean quizReady,
     String quizStatus,
     int maxAttempts

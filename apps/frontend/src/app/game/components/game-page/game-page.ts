@@ -35,6 +35,12 @@ export class GamePageComponent implements OnInit {
     this.lang.current() === 'es' ? this.state.revealedNameEs() : this.state.revealedName(),
   );
 
+  protected readonly nameLength = computed(() => {
+    const b = this.state.bootstrap();
+    if (!b) return 0;
+    return this.lang.current() === 'es' ? b.nameLengthEs : b.nameLength;
+  });
+
   async ngOnInit(): Promise<void> {
     try {
       this.state.initialize(await this.api.today());
@@ -47,7 +53,7 @@ export class GamePageComponent implements OnInit {
     if (this.processing()) return;
     this.processing.set(true);
     try {
-      const r = await this.api.attempt(transcript, this.state.attempts());
+      const r = await this.api.attempt(transcript, this.state.attempts(), this.lang.current());
       this.state.applyAttempt(r);
       this.lastFeedback.set({ ok: r.correct });
       setTimeout(() => this.lastFeedback.set(null), 2000);

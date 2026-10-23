@@ -12,6 +12,7 @@ describe('GamePageComponent', () => {
   const bootstrap: GameState = {
     imageUrl: 'img.png',
     nameLength: 7,
+    nameLengthEs: 7,
     quizReady: false,
     quizStatus: 'PENDING',
     maxAttempts: 5,

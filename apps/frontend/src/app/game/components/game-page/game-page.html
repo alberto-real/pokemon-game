@@ -10,7 +10,7 @@
         <app-attempts-history
           [attempts]="state.attempts()"
           [max]="b.maxAttempts"
-          [nameLength]="b.nameLength"
+          [nameLength]="nameLength()"
           [hints]="state.hints()"
           [showNextRow]="!state.nameRevealed() && state.attempts().length >= 2"
         />
